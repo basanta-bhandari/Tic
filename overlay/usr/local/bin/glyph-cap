@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly CAP_DB="${GLYPH_CAP_DB:-/etc/glyph/capabilities.tsv}"
+
+die() {
+    printf 'glyph-cap: %s\n' "$*" >&2
+    exit 1
+}
+
+alias_name="${0##*/}"
+if [[ "$alias_name" == glyph-cap ]]; then
+    (($#)) || die "usage: glyph-cap CAPABILITY [ARG ...]"
+    alias_name="$1"
+    shift
+fi
+
+[[ -r "$CAP_DB" ]] || die "missing capability catalog: $CAP_DB"
+command_name="$(awk -F '\t' -v alias="$alias_name" '$1 == alias {print $4; exit}' "$CAP_DB")"
+[[ -n "$command_name" ]] || die "unknown capability: $alias_name"
+command -v "$command_name" >/dev/null 2>&1 || die "provider command is not installed: $command_name"
+
+exec "$command_name" "$@"

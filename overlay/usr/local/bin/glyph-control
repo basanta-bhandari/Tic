@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# shellcheck source=/usr/local/lib/glyph/ui.sh
+source /usr/local/lib/glyph/ui.sh
+glyph_require dialog || exit 1
+trap glyph_cleanup_terminal EXIT HUP INT TERM
+
+usage() {
+    cat <<'EOF'
+Usage: glyph-control
+
+Open Glyph Linux system settings and administrative tools.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    "") ;;
+    *) usage >&2; exit 2 ;;
+esac
+
+choose_with_fzf() {
+    local prompt="$1"
+    shift
+    glyph_require fzf || return
+    clear
+    "$@" | fzf --prompt="$prompt"
+}
+
+configure_timezone() {
+    local zone
+    zone="$(choose_with_fzf 'Timezone> ' timedatectl list-timezones)" || return
+    [[ -n "$zone" ]] || return
+    glyph_confirm "Timezone" "Set the system timezone to $zone?" && \
+        glyph_run glyph_as_root timedatectl set-timezone "$zone"
+}
+
+configure_keyboard() {
+    local keymap
+    keymap="$(choose_with_fzf 'Keymap> ' localectl list-keymaps)" || return
+    [[ -n "$keymap" ]] || return
+    glyph_confirm "Console keymap" "Use $keymap for the Linux console?" && \
+        glyph_run glyph_as_root localectl set-keymap "$keymap"
+}
+
+configure_hostname() {
+    local name
+    name="$(glyph_dialog --title "Computer name" --inputbox \
+        "New static hostname" 9 64 "$(hostnamectl hostname 2>/dev/null || hostname)")" || return
+    [[ "$name" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]{0,62}$ ]] || {
+        glyph_message "Invalid hostname" "Use 1–63 letters, numbers, periods, or hyphens."
+        return
+    }
+    glyph_run glyph_as_root hostnamectl set-hostname "$name"
+}
+
+manage_service() {
+    glyph_require fzf || return
+    local unit action
+    clear
+    unit="$(systemctl list-unit-files --type=service --no-legend | awk '{print $1}' | \
+        fzf --prompt='Service> ' --preview='systemctl status --no-pager {} 2>&1 | head -30')" || return
+    [[ "$unit" =~ ^[a-zA-Z0-9@_.:-]+\.service$ ]] || return
+    action="$(glyph_dialog --title "$unit" --cancel-label "Back" --menu \
+        "Choose a service action" 16 66 7 \
+        status "Show current status" \
+        start "Start now" \
+        restart "Restart now" \
+        stop "Stop now" \
+        enable "Enable at boot" \
+        disable "Disable at boot")" || return
+    case "$action" in
+        status) glyph_run systemctl status --no-pager "$unit" ;;
+        start|restart|stop|enable|disable)
+            glyph_confirm "Service" "$action $unit?" && glyph_run glyph_as_root systemctl "$action" "$unit"
+            ;;
+    esac
+}
+
+manage_user() {
+    glyph_require fzf || return
+    local user action
+    clear
+    user="$(getent passwd | awk -F: '$3 == 0 || ($3 >= 1000 && $3 < 60000) {print $1}' | \
+        fzf --prompt='User> ')" || return
+    [[ "$user" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]] || return
+    action="$(glyph_dialog --title "User: $user" --cancel-label "Back" --menu \
+        "Account action" 14 64 5 \
+        password "Change password" \
+        fish "Set Fish as login shell" \
+        groups "Show group memberships")" || return
+    case "$action" in
+        password) glyph_run glyph_as_root passwd "$user" ;;
+        fish) glyph_run glyph_as_root usermod -s /usr/bin/fish "$user" ;;
+        groups) glyph_run id "$user" ;;
+    esac
+}
+
+manage_firewall() {
+    local action
+    action="$(glyph_dialog --title "Firewall" --cancel-label "Back" --menu \
+        "UFW provides a simple nftables policy." 15 68 6 \
+        status "Show rules and state" \
+        enable "Deny unsolicited incoming traffic" \
+        disable "Disable host firewall" \
+        allowssh "Allow incoming SSH")" || return
+    case "$action" in
+        status) glyph_run glyph_as_root ufw status verbose ;;
+        enable)
+            glyph_confirm "Enable firewall" "Set deny-incoming, allow-outgoing defaults and enable UFW?" && {
+                glyph_as_root ufw default deny incoming
+                glyph_as_root ufw default allow outgoing
+                glyph_run glyph_as_root ufw --force enable
+            }
+            ;;
+        disable)
+            glyph_confirm "Disable firewall" "Disable the host firewall?" && glyph_run glyph_as_root ufw disable
+            ;;
+        allowssh)
+            glyph_confirm "Allow SSH" "Open TCP port 22 for incoming SSH?" && glyph_run glyph_as_root ufw allow 22/tcp
+            ;;
+    esac
+}
+
+manage_power() {
+    local action profile brightness
+    action="$(glyph_dialog --title "Power and battery" --cancel-label "Back" --menu \
+        "Current profile: $(powerprofilesctl get 2>/dev/null || printf 'unavailable')" 16 70 7 \
+        profile "Choose performance, balanced, or power-saver" \
+        brightness "Set display brightness percentage" \
+        battery "Show battery and AC state" \
+        inspect "Open PowerTOP inspector")" || return
+    case "$action" in
+        profile)
+            profile="$(glyph_dialog --title "Power profile" --cancel-label "Back" --menu \
+                "Unavailable profiles will be rejected by the hardware driver." 14 72 5 \
+                performance "Maximum performance" \
+                balanced "Balanced performance and energy" \
+                power-saver "Minimum energy use")" || return
+            glyph_run glyph_as_root powerprofilesctl set "$profile"
+            ;;
+        brightness)
+            brightness="$(glyph_dialog --title "Brightness" --inputbox \
+                "Percentage from 1 to 100" 9 58 50)" || return
+            [[ "$brightness" =~ ^[0-9]+$ ]] && ((brightness >= 1 && brightness <= 100)) || {
+                glyph_message "Brightness" "Enter a whole number from 1 through 100."
+                return
+            }
+            glyph_run glyph_as_root brightnessctl set "${brightness}%"
+            ;;
+        battery) glyph_run acpi -V ;;
+        inspect)
+            glyph_require powertop && glyph_run glyph_as_root powertop
+            ;;
+    esac
+}
+
+show_about() {
+    local text
+    text="$(cat /etc/glyph-release 2>/dev/null || printf 'Glyph Linux')
+
+Kernel: $(uname -srmo)
+Host: $(hostname)
+Shell: ${SHELL:-unknown}
+Terminal: ${TERM:-unknown}
+Packages: $(pacman -Qq 2>/dev/null | wc -l)
+Boot: $(systemd-analyze 2>/dev/null || printf 'unavailable')
+
+Glyph is an unofficial, Arch-based, text-first workstation."
+    glyph_message "About Glyph" "$text"
+}
+
+while true; do
+    choice="$(glyph_dialog --title "Control Center" --cancel-label "Back" --menu \
+        "Settings affect the real Arch system." 22 78 13 \
+        network "Network and Wi-Fi — NetworkManager" \
+        bluetooth "Bluetooth devices — BlueZ" \
+        audio "Sound input and output — PulseMixer" \
+        power "Power profile, brightness, and battery" \
+        storage "Disks, filesystems, and free space" \
+        services "System services and startup" \
+        users "Accounts, passwords, and login shells" \
+        timezone "Date, time, and timezone" \
+        keyboard "Console keyboard layout" \
+        hostname "Computer name" \
+        firewall "Host firewall" \
+        logs "Warnings from this boot" \
+        doctor "System health report" \
+        about "System and Glyph information")" || break
+
+    case "$choice" in
+        network) glyph_run glyph_as_root nmtui ;;
+        bluetooth) glyph_run glyph_as_root bluetoothctl ;;
+        audio) glyph_run pulsemixer ;;
+        power) manage_power ;;
+        storage) glyph_run bash -c 'lsblk -o NAME,SIZE,TYPE,FSTYPE,FSUSE%,MOUNTPOINTS,MODEL; printf "\n"; df -hT' ;;
+        services) manage_service ;;
+        users) manage_user ;;
+        timezone) configure_timezone ;;
+        keyboard) configure_keyboard ;;
+        hostname) configure_hostname ;;
+        firewall) manage_firewall ;;
+        logs) glyph_run journalctl -b -p warning..alert --no-pager ;;
+        doctor) glyph_run glyph-doctor ;;
+        about) show_about ;;
+    esac
+done

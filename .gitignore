@@ -1,0 +1,8 @@
+/.local-tools/
+/work/
+/out/
+/out-fixed/
+/repo/out/
+*.iso
+*.pkg.tar.*
+*.sig

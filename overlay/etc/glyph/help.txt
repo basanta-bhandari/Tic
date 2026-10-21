@@ -1,0 +1,52 @@
+GLYPH LINUX QUICK REFERENCE
+===========================
+
+NAVIGATION
+  glyph                 main application launcher
+  glyph-control         settings and system tools
+  tac                   TUI package management
+  glyph-open PATH       open a file with a suitable TUI
+  glyph-doctor          health and update report
+
+  Esc                   back or close a dialog
+  Tab / arrows          move through controls
+  Enter                 activate the selected item
+  Ctrl+Alt+F2..F6       switch to another virtual console
+
+SHELL
+  Fish is the login shell. Suggestions come from history; use the right arrow
+  to accept one. Tab opens searchable completion. `help` opens Fish help and
+  `tldr COMMAND` shows task-oriented examples.
+
+  Common abbreviations:
+    ll      eza -la --group-directories-first
+    gs      git status
+    v       nvim
+    fm      yazi
+    update  sudo pacman -Syu
+
+WORKSPACES
+  Run `tmux` for persistent windows and splits.
+    Ctrl+b c             new window
+    Ctrl+b n / p         next / previous window
+    Ctrl+b %             vertical split
+    Ctrl+b "             horizontal split
+    Ctrl+b d             detach
+    tmux attach          return later
+
+FILES
+  Yazi uses arrows or h/j/k/l to navigate, Enter/l to open, q to leave, and ?
+  for help. `glyph-open` handles text, Markdown, tables, PDFs, images, audio,
+  video, HTML, archives, and directories.
+
+PACKAGES
+  Use `tac`, or Pacman directly:
+    sudo pacman -Syu            update the system
+    pacman -Ss WORD             search repositories
+    sudo pacman -S PACKAGE      install
+    sudo pacman -Rns PACKAGE    remove with unused dependencies
+
+RECOVERY
+  The launcher is optional. Press Esc and choose Exit to reach Fish, set
+  GLYPH_NO_LAUNCH=1, or switch to another TTY. Standard Arch documentation and
+  commands always remain valid.

@@ -1,0 +1,10 @@
+auto-reload yes
+reload-time 30
+browser "w3m %u"
+show-read-feeds no
+
+color background         yellow black
+color listnormal         yellow black
+color listfocus          black  yellow bold
+color info               black  yellow bold
+color article            yellow black

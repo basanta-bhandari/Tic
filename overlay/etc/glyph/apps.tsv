@@ -1,0 +1,49 @@
+# category<TAB>tag<TAB>label<TAB>command<TAB>required-command
+WORK	file-manager-2	Files — Yazi	yazi	yazi
+WORK	file-manager-1	Files — nnn	nnn	nnn
+WORK	editor-1	Editor — Neovim	nvim	nvim
+WORK	editor-2	Editor — Helix	hx	hx
+WORK	data-viewer-1	Tables and spreadsheets — VisiData	vd	vd
+WORK	json-viewer-1	JSON explorer — fx	fx	fx
+WORK	markdown-viewer-1	Markdown reader — Glow	glow -p /usr/local/share/glyph/docs/APP_CATALOG.md	glow
+WORK	presentation-1	Terminal presentations — Presenterm	presenterm --help | less -R	presenterm
+WORK	git-client-1	Git workspace — LazyGit	lazygit	lazygit
+WORK	git-client-2	Git workspace — GitUI	gitui	gitui
+WORK	workspace-1	Workspace multiplexer — Zellij	zellij	zellij
+WORK	ai-workspace-1	AI coding workspace — OpenCode	opencode	opencode
+ORGANIZE	calendar-1	Calendar — Calcurse	calcurse	calcurse
+ORGANIZE	task-manager-1	Tasks — Taskwarrior	task	task
+ORGANIZE	password-manager-1	Password store — pass	pass	pass
+COMMUNICATE	web-browser-1	Web browser — W3M	w3m https://wiki.archlinux.org/	w3m
+COMMUNICATE	mail-client-1	Email — aerc	aerc	aerc
+COMMUNICATE	mail-client-2	Email — NeoMutt	neomutt	neomutt
+COMMUNICATE	rss-reader-1	Feeds — Newsboat	newsboat	newsboat
+COMMUNICATE	irc-client-1	IRC — Irssi	irssi	irssi
+COMMUNICATE	matrix-client-1	Matrix — Gomuks	gomuks	gomuks
+COMMUNICATE	xmpp-client-1	XMPP — Profanity	profanity	profanity
+COMMUNICATE	mastodon-client-1	Mastodon — Toot	toot tui	toot
+COMMUNICATE	twitch-client-1	Twitch chat — twitch-tui	twitch-tui	twitch-tui
+COMMUNICATE	ssh	Remote shell — SSH	printf 'Use: ssh user@host\n\n'; read -r -p 'Press Enter to return...'	ssh
+MEDIA	music-player-1	Music library — cmus	cmus	cmus
+MEDIA	music-player-2	MPD music client — ncmpcpp	ncmpcpp	ncmpcpp
+MEDIA	image-viewer-1	Image viewer — Chafa	f=$(find "$HOME" -type f 2>/dev/null | fzf --prompt='Image> '); test -n "$f" && glyph-open "$f"	chafa
+MEDIA	video-player-1	Video in terminal cells — mpv	f=$(find "$HOME" -type f 2>/dev/null | fzf --prompt='Video> '); test -n "$f" && mpv --vo=tct "$f"	mpv
+MEDIA	audio-mixer-1	Audio mixer — PulseMixer	pulsemixer	pulsemixer
+SYSTEM	system-monitor-1	System monitor — btop	btop	btop
+SYSTEM	gpu-monitor-1	GPU monitor — nvtop	nvtop	nvtop
+SYSTEM	disk-analyzer-1	Disk usage — ncdu	ncdu "$HOME"	ncdu
+SYSTEM	process-viewer-1	Processes — procs	procs --watch	procs
+SYSTEM	network-manager-1	Network — nmtui	sudo nmtui	nmtui
+SYSTEM	wifi-manager-1	Wi-Fi — Impala	sudo impala	impala
+SYSTEM	bluetooth	Bluetooth — bluetoothctl	sudo bluetoothctl	bluetoothctl
+SYSTEM	bluetooth-manager-1	Bluetooth — Bluetui	sudo bluetui	bluetui
+SYSTEM	bandwidth-monitor-1	Bandwidth — bandwhich	sudo bandwhich	bandwhich
+SYSTEM	packet-analyzer-1	Packets — Termshark	sudo termshark	termshark
+SYSTEM	log-viewer-1	Logs — lnav	lnav /var/log	lnav
+SYSTEM	kernel-manager-1	Kernel modules — kmon	sudo kmon	kmon
+SYSTEM	container-manager-1	Containers — LazyDocker	lazydocker	lazydocker
+SYSTEM	kubernetes-manager-1	Kubernetes — K9s	k9s	k9s
+SYSTEM	system-info-1	System identity — Fastfetch	fastfetch	fastfetch
+SYSTEM	package-manager-1	Software — TAC Packages	tac	tac
+SYSTEM	settings	Settings — Glyph Control	glyph-control	glyph-control
+SYSTEM	doctor	Health report — Glyph Doctor	glyph-doctor | less -R	glyph-doctor

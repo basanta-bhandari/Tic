@@ -1,0 +1,18 @@
+# Optional development flavor
+base-devel
+python
+python-pip
+python-pipx
+nodejs
+npm
+go
+rustup
+gdb
+lldb
+shellcheck
+shfmt
+hyperfine
+just
+podman
+buildah
+skopeo

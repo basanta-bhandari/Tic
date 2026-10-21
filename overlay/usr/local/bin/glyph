@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+readonly APP_DB="${GLYPH_APP_DB:-/etc/glyph/apps.tsv}"
+readonly HELP_FILE="${GLYPH_HELP_FILE:-/etc/glyph/help.txt}"
+
+ui_library="${GLYPH_UI_LIBRARY:-/usr/local/lib/glyph/ui.sh}"
+if [[ -r "$ui_library" ]]; then
+    # shellcheck source=/usr/local/lib/glyph/ui.sh
+    source "$ui_library"
+else
+    printf 'Glyph UI library is missing.\n' >&2
+    exit 1
+fi
+
+usage() {
+    cat <<'EOF'
+Usage: glyph [--help] [--list-apps]
+
+Open the Glyph Linux text workspace.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    --list-apps) awk -F '\t' '!/^#/ {printf "%-12s %-14s %s\n", $1, $2, $3}' "$APP_DB"; exit 0 ;;
+    "") ;;
+    *) usage >&2; exit 2 ;;
+esac
+
+glyph_require dialog || exit 1
+[[ -r "$APP_DB" ]] || { printf 'Missing application catalog: %s\n' "$APP_DB" >&2; exit 1; }
+trap glyph_cleanup_terminal EXIT HUP INT TERM
+
+status_line() {
+    local net="offline"
+    local battery=""
+    local load=""
+    if command -v nmcli >/dev/null 2>&1; then
+        net="$(nmcli -t -f STATE general 2>/dev/null | head -1)"
+        [[ -n "$net" ]] || net="offline"
+    fi
+    if compgen -G '/sys/class/power_supply/BAT*/capacity' >/dev/null; then
+        local capacity
+        capacity="$(head -1 /sys/class/power_supply/BAT*/capacity 2>/dev/null || true)"
+        [[ -n "$capacity" ]] && battery="  BAT ${capacity}%"
+    fi
+    read -r load _ </proc/loadavg 2>/dev/null || load="?"
+    printf '%s  NET %s%s  LOAD %s  %(%H:%M)T' "$(hostname)" "$net" "$battery" "$load" -1
+}
+
+launch_command() {
+    local label="$1"
+    local command="$2"
+    local required="${3:-}"
+    [[ -z "$required" ]] || glyph_require "$required" || return
+    clear
+    printf '\033[1;33mGLYPH // %s\033[0m\n\n' "$label"
+    GLYPH_NO_LAUNCH=1 bash -lc "$command"
+    local status=$?
+    if ((status != 0)); then
+        printf '\n\033[1;31mApplication exited with status %d.\033[0m\n' "$status" >&2
+    fi
+    glyph_pause
+}
+
+app_menu() {
+    local category="$1"
+    local title="$2"
+    local -a menu=()
+    local row_category tag label command required
+    declare -A commands=()
+    declare -A labels=()
+    declare -A requirements=()
+
+    while IFS=$'\t' read -r row_category tag label command required; do
+        [[ "$row_category" == "$category" ]] || continue
+        command -v "$required" >/dev/null 2>&1 || continue
+        menu+=("$tag" "$label")
+        commands["$tag"]="$command"
+        labels["$tag"]="$label"
+        requirements["$tag"]="$required"
+    done < <(grep -v '^[[:space:]]*#' "$APP_DB")
+
+    if ((${#menu[@]} == 0)); then
+        glyph_message "$title" "No applications are registered in this category."
+        return
+    fi
+
+    while true; do
+        local choice
+        choice="$(glyph_dialog --title "$title" --cancel-label "Back" \
+            --menu "Select an application" 20 76 12 "${menu[@]}")" || return
+        launch_command "${labels[$choice]}" "${commands[$choice]}" "${requirements[$choice]}"
+    done
+}
+
+search_apps() {
+    glyph_require fzf || return
+    local selected command label required palette
+    clear
+    palette="$(mktemp -t glyph-apps.XXXXXX)"
+    while IFS=$'\t' read -r category tag row_label row_command row_required; do
+        command -v "$row_required" >/dev/null 2>&1 || continue
+        printf '%s\t%s\t%s\t%s\t%s\n' "$category" "$tag" "$row_label" "$row_command" "$row_required"
+    done < <(grep -v '^[[:space:]]*#' "$APP_DB") >"$palette"
+    if ! selected="$(fzf --delimiter=$'\t' --with-nth=1,3 \
+        --prompt='Glyph app> ' --header='CATEGORY  APPLICATION' <"$palette")"; then
+        rm -f -- "$palette"
+        return
+    fi
+    IFS=$'\t' read -r _ _ label command required <<<"$selected"
+    rm -f -- "$palette"
+    [[ -n "$command" ]] && launch_command "$label" "$command" "$required"
+}
+
+command_palette() {
+    local command
+    command="$(glyph_dialog --title "Run command" --inputbox \
+        "Enter a Fish command. It will run visibly and return here." 10 72)" || return
+    [[ -n "$command" ]] || return
+    clear
+    GLYPH_NO_LAUNCH=1 fish -lc "$command"
+    glyph_pause
+}
+
+power_menu() {
+    local action
+    action="$(glyph_dialog --title "Power" --cancel-label "Back" --menu \
+        "Choose a session or power action" 15 68 7 \
+        lock "Lock this console" \
+        logout "Exit to the shell" \
+        reboot "Restart the computer" \
+        poweroff "Turn off the computer")" || return 1
+    case "$action" in
+        lock)
+            if command -v vlock >/dev/null 2>&1; then
+                glyph_run vlock
+            else
+                glyph_message "Lock" "vlock is not installed. Switch to another TTY or log out."
+            fi
+            ;;
+        logout) return 2 ;;
+        reboot|poweroff)
+            glyph_confirm "Confirm $action" "Really $action now?" && glyph_as_root systemctl "$action"
+            ;;
+    esac
+}
+
+while true; do
+    choice="$(glyph_dialog --title "$(status_line)" --cancel-label "Exit" --menu \
+        "Select a workspace  •  / searches apps  •  Esc exits" 22 78 13 \
+        work "WORK          Files, editor, documents, data, and Git" \
+        organize "ORGANIZE      Calendar, tasks, and passwords" \
+        communicate "COMMUNICATE   Web, mail, feeds, chat, and remote hosts" \
+        media "MEDIA         Music, images, video, and audio" \
+        system "SYSTEM        Monitor, devices, software, and settings" \
+        search "SEARCH        Search every installed Glyph application" \
+        command "COMMAND       Run an arbitrary Fish command" \
+        terminal "TERMINAL      Open a full Fish login shell" \
+        help "HELP          Shortcuts and survival guide" \
+        install "INSTALL       Install Glyph Linux to a disk" \
+        power "POWER         Lock, log out, restart, or turn off")" || break
+
+    case "$choice" in
+        work) app_menu WORK "Work" ;;
+        organize) app_menu ORGANIZE "Organize" ;;
+        communicate) app_menu COMMUNICATE "Communicate" ;;
+        media) app_menu MEDIA "Media" ;;
+        system) app_menu SYSTEM "System" ;;
+        search) search_apps ;;
+        command) command_palette ;;
+        terminal)
+            clear
+            GLYPH_NO_LAUNCH=1 fish --login
+            ;;
+        help) glyph_dialog --title "Glyph Help" --textbox "$HELP_FILE" 24 82 ;;
+        install) glyph_run glyph-install ;;
+        power)
+            power_menu
+            [[ $? -eq 2 ]] && break
+            ;;
+    esac
+done

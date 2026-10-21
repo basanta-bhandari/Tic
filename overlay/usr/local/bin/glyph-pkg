@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# shellcheck source=/usr/local/lib/glyph/ui.sh
+ui_library="${GLYPH_UI_LIBRARY:-/usr/local/lib/glyph/ui.sh}"
+source "$ui_library"
+
+readonly CAP_DB="${GLYPH_CAP_DB:-/etc/glyph/capabilities.tsv}"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  tac                               Open the interactive package manager
+  tac list [ROLE]                   List stable Glyph capability names
+  tac resolve NAME...               Resolve capabilities to Arch packages
+  tac install NAME...               Install capabilities or Arch packages
+  tac remove NAME...                Remove their provider packages
+  tac info NAME...                  Show provider package information
+  tac search TERM                   Search the capability catalog
+  tac update                        Upgrade the complete Arch system
+
+Names such as file-manager-1 and editor-2 are stable Glyph capabilities.
+Pacman remains the transaction engine and is available directly for scripting.
+Glyph-pkg is retained as a compatibility command. The Coreutils reverse-cat
+utility remains available explicitly as /usr/bin/tac.
+EOF
+}
+
+list_capabilities() {
+    local role="${1:-}"
+    [[ -r "$CAP_DB" ]] || { printf 'Missing capability catalog: %s\n' "$CAP_DB" >&2; return 1; }
+    awk -F '\t' -v role="$role" '
+        $0 !~ /^#/ && (role == "" || $2 == role) {
+            printf "%-24s %-15s %-18s %s\n", $1, $2, $3, $5
+        }
+    ' "$CAP_DB"
+}
+
+resolve_packages() {
+    local name package
+    declare -g -a resolved_packages=()
+    declare -A seen=()
+    for name in "$@"; do
+        package="$(awk -F '\t' -v alias="$name" '$1 == alias {print $3; exit}' "$CAP_DB" 2>/dev/null)"
+        [[ -n "$package" ]] || package="$name"
+        if [[ -z ${seen[$package]:-} ]]; then
+            resolved_packages+=("$package")
+            seen[$package]=1
+        fi
+    done
+}
+
+search_capabilities() {
+    local term="${1:-}"
+    [[ -n "$term" ]] || { usage >&2; return 2; }
+    awk -F '\t' -v term="$term" '
+        BEGIN { term=tolower(term) }
+        $0 !~ /^#/ && index(tolower($0), term) {
+            printf "%-24s %-15s %-18s %s\n", $1, $2, $3, $5
+        }
+    ' "$CAP_DB"
+}
+
+run_cli() {
+    local action="$1"
+    shift
+    case "$action" in
+        -h|--help|help) usage ;;
+        list) list_capabilities "${1:-}" ;;
+        search) search_capabilities "${1:-}" ;;
+        resolve)
+            (($#)) || { usage >&2; return 2; }
+            resolve_packages "$@"
+            printf '%s\n' "${resolved_packages[@]}"
+            ;;
+        install|remove|info)
+            (($#)) || { usage >&2; return 2; }
+            validate_packages "$@" || { printf 'Invalid package or capability name.\n' >&2; return 2; }
+            resolve_packages "$@"
+            case "$action" in
+                install) glyph_as_root pacman -S --needed -- "${resolved_packages[@]}" ;;
+                remove) glyph_as_root pacman -Rns -- "${resolved_packages[@]}" ;;
+                info) pacman -Si -- "${resolved_packages[@]}" ;;
+            esac
+            ;;
+        update) glyph_as_root pacman -Syu ;;
+        *) usage >&2; return 2 ;;
+    esac
+}
+
+validate_packages() {
+    local package
+    for package in "$@"; do
+        [[ "$package" =~ ^[a-zA-Z0-9@._+-]+$ ]] || return 1
+    done
+}
+
+read_packages() {
+    local prompt="$1"
+    local answer
+    answer="$(glyph_dialog --title "Packages" --inputbox "$prompt" 11 72)" || return 1
+    read -r -a package_input <<<"$answer"
+    ((${#package_input[@]})) || return 1
+    validate_packages "${package_input[@]}" || {
+        glyph_message "Invalid name" "Package names may contain letters, numbers, @, period, underscore, plus, and hyphen."
+        return 1
+    }
+}
+
+show_search() {
+    local term
+    term="$(glyph_dialog --title "Search repositories" --inputbox "Search term" 9 68)" || return
+    [[ -n "$term" ]] || return
+    clear
+    pacman -Ss -- "$term" | less -R
+}
+
+browse_capabilities() {
+    glyph_require fzf || return
+    local selected
+    clear
+    selected="$(awk -F '\t' '$0 !~ /^#/ {print}' "$CAP_DB" | \
+        fzf --multi --delimiter=$'\t' --with-nth=1,2,5 --prompt='Glyph capability> ')" || return
+    [[ -n "$selected" ]] || return
+    mapfile -t package_input < <(awk -F '\t' '{print $1}' <<<"$selected")
+    resolve_packages "${package_input[@]}"
+    glyph_confirm "Install capabilities" "Install: ${package_input[*]}?\n\nProviders: ${resolved_packages[*]}" || return
+    glyph_run glyph_as_root pacman -S --needed -- "${resolved_packages[@]}"
+}
+
+browse_install() {
+    glyph_require fzf || return
+    local selected
+    clear
+    selected="$(pacman -Slq | LC_ALL=C sort -u | fzf --multi --prompt='Install> ' \
+        --preview='pacman -Si {} 2>/dev/null | sed -n "1,18p"')" || return
+    [[ -n "$selected" ]] || return
+    mapfile -t package_input <<<"$selected"
+    glyph_confirm "Install" "Install ${#package_input[@]} selected package(s)?" || return
+    glyph_run glyph_as_root pacman -S --needed -- "${package_input[@]}"
+}
+
+remove_orphans() {
+    local -a orphans=()
+    mapfile -t orphans < <(pacman -Qtdq 2>/dev/null || true)
+    if ((${#orphans[@]} == 0)); then
+        glyph_message "Orphans" "No orphaned packages were found."
+        return
+    fi
+    glyph_confirm "Remove orphans" "Remove ${#orphans[@]} orphaned package(s)?\n\n${orphans[*]}" || return
+    glyph_run glyph_as_root pacman -Rns -- "${orphans[@]}"
+}
+
+if (($#)); then
+    run_cli "$@"
+    exit $?
+fi
+
+glyph_require dialog || exit 1
+trap glyph_cleanup_terminal EXIT HUP INT TERM
+
+while true; do
+    choice="$(glyph_dialog --title "TAC // TUI + PACMAN" --cancel-label "Back" --menu \
+        "Use stable capabilities or ordinary Arch package names" 21 78 12 \
+        update "Synchronize repositories and upgrade the system" \
+        catalog "Browse Glyph TUI capabilities" \
+        list "List the complete capability map" \
+        browse "Browse all Arch repository packages" \
+        search "Search package names and descriptions" \
+        info "Show detailed package information" \
+        install "Install a capability or exact package" \
+        remove "Remove a capability provider or package" \
+        files "Show files owned by an installed package" \
+        log "Read the Pacman transaction log" \
+        cache "Remove old cached package versions" \
+        orphans "Remove packages no longer required")" || break
+
+    case "$choice" in
+        update)
+            glyph_confirm "Full upgrade" "Run pacman -Syu now? Partial upgrades are intentionally not offered." && \
+                glyph_run glyph_as_root pacman -Syu
+            ;;
+        catalog) browse_capabilities ;;
+        list)
+            clear
+            list_capabilities | less -R
+            ;;
+        browse) browse_install ;;
+        search) show_search ;;
+        info)
+            if read_packages "Capability or package name(s)"; then
+                resolve_packages "${package_input[@]}"
+                glyph_run pacman -Si -- "${resolved_packages[@]}"
+            fi
+            ;;
+        install)
+            if read_packages "Capability or package name(s), separated by spaces"; then
+                resolve_packages "${package_input[@]}"
+                glyph_confirm "Install" "Install: ${package_input[*]}?\n\nProviders: ${resolved_packages[*]}" && \
+                    glyph_run glyph_as_root pacman -S --needed -- "${resolved_packages[@]}"
+            fi
+            ;;
+        remove)
+            if read_packages "Installed capability or package name(s)"; then
+                resolve_packages "${package_input[@]}"
+                glyph_confirm "Remove" "Remove these packages and unused dependencies?\n\n${package_input[*]}" && \
+                    glyph_run glyph_as_root pacman -Rns -- "${resolved_packages[@]}"
+            fi
+            ;;
+        files)
+            if read_packages "One installed package name"; then
+                glyph_run pacman -Ql -- "${package_input[0]}"
+            fi
+            ;;
+        log) glyph_run less -R /var/log/pacman.log ;;
+        cache)
+            glyph_confirm "Clean cache" "Keep the newest two cached versions of installed packages?" && \
+                glyph_run glyph_as_root paccache -rk2
+            ;;
+        orphans) remove_orphans ;;
+    esac
+done

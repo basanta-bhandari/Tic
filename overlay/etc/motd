@@ -1,0 +1,8 @@
+
+  GLYPH LINUX  //  Everything is a command; the launcher merely remembers it.
+
+  glyph          open the workspace
+  glyph-control  system settings
+  tac            TUI software management
+  glyph-doctor   health report
+  glyph-help     quick reference

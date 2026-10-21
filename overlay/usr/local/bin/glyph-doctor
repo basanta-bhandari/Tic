@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+updates_file="$(mktemp -t glyph-updates.XXXXXX)"
+trap 'rm -f -- "$updates_file"' EXIT HUP INT TERM
+
+usage() {
+    cat <<'EOF'
+Usage: glyph-doctor
+
+Print a read-only health report for the current Glyph system.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    "") ;;
+    *) usage >&2; exit 2 ;;
+esac
+
+bold=$'\033[1;33m'
+good=$'\033[1;32m'
+warn=$'\033[1;31m'
+dim=$'\033[2;33m'
+reset=$'\033[0m'
+
+heading() {
+    printf '\n%s%s%s\n' "$bold" "$1" "$reset"
+    printf '%s\n' '────────────────────────────────────────────────────────────'
+}
+
+printf '%sGLYPH DOCTOR%s  %(%Y-%m-%d %H:%M:%S %Z)T\n' "$bold" "$reset" -1
+printf '%s on %s • %s\n' "$(hostname)" "$(uname -r)" "$(uname -m)"
+
+heading "FAILED SERVICES"
+failed="$(systemctl --failed --no-legend --plain 2>/dev/null || true)"
+if [[ -n "$failed" ]]; then
+    printf '%s%s%s\n' "$warn" "$failed" "$reset"
+else
+    printf '%sNo failed system services.%s\n' "$good" "$reset"
+fi
+
+heading "STORAGE"
+df -hT -x tmpfs -x devtmpfs 2>/dev/null || true
+while read -r use mountpoint; do
+    use="${use%%%}"
+    if [[ "$use" =~ ^[0-9]+$ ]] && ((use >= 90)); then
+        printf '%sWarning: %s is %s%% full.%s\n' "$warn" "$mountpoint" "$use" "$reset"
+    fi
+done < <(df -P -x tmpfs -x devtmpfs 2>/dev/null | awk 'NR > 1 {print $5, $6}')
+
+heading "MEMORY AND LOAD"
+free -h 2>/dev/null || true
+printf 'Load: %s\n' "$(cut -d' ' -f1-3 /proc/loadavg)"
+
+heading "NETWORK"
+if command -v nmcli >/dev/null 2>&1; then
+    nmcli -f STATE,CONNECTIVITY general 2>/dev/null || true
+    nmcli -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null || true
+else
+    printf '%sNetworkManager is not installed.%s\n' "$warn" "$reset"
+fi
+
+heading "PACKAGE DATABASE"
+if pacman -Dk >/dev/null 2>&1; then
+    printf '%sPacman database is internally consistent.%s\n' "$good" "$reset"
+else
+    printf '%sPacman reports a database consistency problem.%s\n' "$warn" "$reset"
+    pacman -Dk 2>&1 || true
+fi
+
+if command -v checkupdates >/dev/null 2>&1 && timeout 25 checkupdates >"$updates_file" 2>/dev/null; then
+    update_count="$(wc -l <"$updates_file" 2>/dev/null || printf 0)"
+    printf '%s update(s) are available. Run tac to review them.\n' "$update_count"
+else
+    printf '%sUpdate check found none, is offline, or timed out.%s\n' "$dim" "$reset"
+fi
+
+heading "RECENT HIGH-PRIORITY LOGS"
+journalctl -b -p err..alert --no-pager -n 12 2>/dev/null || true
+
+printf '\n%sDoctor is read-only; no settings were changed.%s\n' "$dim" "$reset"

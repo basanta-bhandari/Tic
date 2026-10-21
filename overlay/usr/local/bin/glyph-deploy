@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly PAYLOAD="/usr/local/share/glyph"
+skip_packages=0
+
+usage() {
+    cat <<'EOF'
+Usage: glyph-deploy [--skip-packages] TARGET
+
+Install Glyph's package set, root overlay, and system defaults into a mounted
+Arch Linux root filesystem. TARGET must be a mountpoint and may not be `/`.
+
+Options:
+  --skip-packages   Copy configuration without running pacstrap
+  -h, --help        Show this help
+EOF
+}
+
+die() {
+    printf 'glyph-deploy: %s\n' "$*" >&2
+    exit 1
+}
+
+args=()
+while (($#)); do
+    case "$1" in
+        --skip-packages) skip_packages=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        --) shift; args+=("$@"); break ;;
+        -*) die "unknown option: $1" ;;
+        *) args+=("$1"); shift ;;
+    esac
+done
+
+((${#args[@]} == 1)) || { usage >&2; exit 2; }
+((EUID == 0)) || die "must run as root"
+[[ -d "$PAYLOAD/rootfs" ]] || die "installation payload is missing"
+[[ -r "$PAYLOAD/packages.x86_64" ]] || die "package manifest is missing"
+command -v arch-chroot >/dev/null 2>&1 || die "arch-chroot is missing"
+
+target="$(realpath -e -- "${args[0]}")"
+[[ "$target" != / ]] || die "refusing to deploy over the running root filesystem"
+mountpoint -q "$target" || die "target is not a mountpoint: $target"
+[[ -r "$target/etc/pacman.conf" && -x "$target/usr/bin/pacman" ]] || \
+    die "target does not look like an installed Arch root"
+
+printf 'Deploying Glyph Linux to %s\n' "$target"
+if ((skip_packages == 0)); then
+    mapfile -t packages < <(awk '!/^[[:space:]]*(#|$)/ {print $1}' "$PAYLOAD/packages.x86_64")
+    ((${#packages[@]})) || die "package manifest is empty"
+    arch-chroot "$target" pacman -Syu --needed --noconfirm -- "${packages[@]}"
+fi
+
+cp -a -- "$PAYLOAD/rootfs/." "$target/"
+chmod 0755 "$target"/usr/local/bin/glyph* "$target/usr/local/bin/tac" \
+    "$target/usr/local/lib/glyph/"*.sh
+
+arch-chroot "$target" /usr/local/lib/glyph/post-install.sh
+printf '\nGlyph deployment complete.\n'

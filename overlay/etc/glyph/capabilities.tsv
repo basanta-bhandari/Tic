@@ -1,0 +1,65 @@
+# alias<TAB>role<TAB>package<TAB>command<TAB>description
+file-manager-1	files	nnn	nnn	Fast minimal file manager
+file-manager-2	files	yazi	yazi	Preview-rich asynchronous file manager
+file-manager-3	files	mc	mc	Classic dual-pane file manager
+editor-1	editing	neovim	nvim	Extensible modal editor
+editor-2	editing	helix	hx	Modal editor with built-in language tooling
+workspace-1	workspace	zellij	zellij	Modern terminal workspace and multiplexer
+workspace-2	workspace	tmux	tmux	Persistent terminal multiplexer
+git-client-1	development	lazygit	lazygit	Git terminal workspace
+git-client-2	development	gitui	gitui	Fast Git terminal interface
+diff-viewer-1	development	git-delta	delta	Syntax-aware diff viewer
+ai-workspace-1	development	opencode	opencode	Terminal AI coding workspace
+data-viewer-1	data	visidata	vd	Interactive tabular data tool
+json-viewer-1	data	fx	fx	Interactive JSON explorer
+markdown-viewer-1	documents	glow	glow	Markdown reader
+presentation-1	documents	presenterm	presenterm	Terminal presentation tool
+web-browser-1	web	w3m	w3m	Text web browser and pager
+rss-reader-1	communication	newsboat	newsboat	RSS and Atom reader
+mail-client-1	communication	aerc	aerc	Terminal email client
+mail-client-2	communication	neomutt	neomutt	Traditional terminal email client
+irc-client-1	communication	irssi	irssi	IRC client
+irc-client-2	communication	weechat	weechat	Extensible chat client
+matrix-client-1	communication	gomuks	gomuks	Matrix client
+xmpp-client-1	communication	profanity	profanity	XMPP client
+mastodon-client-1	communication	toot	toot	Mastodon client
+twitch-client-1	communication	twitch-tui	twitch-tui	Twitch chat client
+calendar-1	organize	calcurse	calcurse	Calendar and appointments
+task-manager-1	organize	task	task	Taskwarrior task manager
+password-manager-1	organize	pass	pass	Unix password store
+accounting-1	organize	hledger	hledger	Plain-text accounting
+finance-monitor-1	organize	tickrs	tickrs	Market ticker
+music-player-1	media	cmus	cmus	Music library and player
+music-player-2	media	ncmpcpp	ncmpcpp	MPD music client
+video-player-1	media	mpv	mpv	Media player with terminal output
+image-viewer-1	media	chafa	chafa	Terminal image renderer
+audio-mixer-1	media	pulsemixer	pulsemixer	PipeWire/PulseAudio mixer
+system-monitor-1	system	btop	btop	CPU, memory, disk, and process monitor
+gpu-monitor-1	system	nvtop	nvtop	GPU process monitor
+process-viewer-1	system	procs	procs	Modern process viewer
+disk-analyzer-1	system	ncdu	ncdu	Interactive disk usage analyzer
+disk-analyzer-2	system	dua-cli	dua	Parallel disk usage analyzer
+disk-analyzer-3	system	duf	duf	Filesystem usage overview
+log-viewer-1	system	lnav	lnav	Log navigator
+kernel-manager-1	system	kmon	kmon	Kernel module manager
+sysctl-manager-1	system	systeroid	systeroid	Interactive sysctl manager
+system-info-1	system	fastfetch	fastfetch	System information summary
+hex-editor-1	system	dhex	dhex	Hex editor and binary diff tool
+package-manager-1	system	pacman	tac	TAC capability package manager (TUI plus Pacman)
+network-manager-1	network	networkmanager	nmtui	NetworkManager text interface
+wifi-manager-1	network	impala	impala	Wi-Fi manager
+bluetooth-manager-1	network	bluetui	bluetui	Bluetooth manager
+bandwidth-monitor-1	network	bandwhich	bandwhich	Per-process bandwidth monitor
+ping-monitor-1	network	gping	gping	Graphing ping tool
+packet-analyzer-1	network	termshark	termshark	Terminal packet analyzer
+traffic-monitor-1	network	iptraf-ng	iptraf-ng	IP traffic monitor
+web-log-analyzer-1	network	goaccess	goaccess	Web log analyzer
+load-tester-1	network	ali	ali	HTTP load tester with live graphs
+container-manager-1	containers	lazydocker	lazydocker	Docker and Compose manager
+container-monitor-1	containers	ctop	ctop	Container resource monitor
+container-inspector-1	containers	dive	dive	Container image explorer
+kubernetes-manager-1	containers	k9s	k9s	Kubernetes terminal manager
+gpg-manager-1	security	gpg-tui	gpg-tui	OpenPGP key manager
+text-search-1	utilities	ugrep	ugrep	Interactive recursive text search
+pipe-builder-1	utilities	up	up	Interactive Unix pipeline builder
+game-1	games	gnuchess	gnuchess	GNU Chess

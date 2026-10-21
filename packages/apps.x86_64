@@ -1,0 +1,86 @@
+# Files, editing, navigation, and monitoring
+neovim
+helix
+mc
+nnn
+ncdu
+duf
+procs
+dua-cli
+lazygit
+gitui
+git-delta
+zellij
+fx
+up
+fastfetch
+opencode
+
+# Personal information and communication
+calcurse
+task
+newsboat
+aerc
+neomutt
+irssi
+weechat
+gomuks
+profanity
+toot
+twitch-tui
+w3m
+
+# Documents, structured data, and presentation
+glow
+visidata
+poppler
+chafa
+imagemagick
+presenterm
+libqalculate
+
+# Media
+cmus
+mpv
+ncmpcpp
+mpd
+
+# Finance, privacy, and personal tools
+hledger
+tickrs
+gpg-tui
+
+# Printing, scanning, and power inspection
+cups
+sane
+powertop
+
+# Systems, networking, containers, and diagnostics
+lazydocker
+ctop
+dive
+k9s
+termshark
+goaccess
+lnav
+kmon
+nvtop
+bandwhich
+gping
+ali
+iptraf-ng
+ugrep
+gef
+dhex
+systeroid
+bluetui
+impala
+clonezilla
+gnuchess
+
+# Downloads, backups, and secrets
+transmission-cli
+rclone
+restic
+pass
+gnupg

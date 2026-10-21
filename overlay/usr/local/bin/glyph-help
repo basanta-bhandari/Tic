@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ${1:-} == --plain || ! -t 1 ]]; then
+    exec cat /etc/glyph/help.txt
+fi
+
+# shellcheck source=/usr/local/lib/glyph/ui.sh
+source /usr/local/lib/glyph/ui.sh
+glyph_dialog --title "Glyph Help" --textbox /etc/glyph/help.txt 24 82
