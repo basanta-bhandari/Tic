@@ -96,6 +96,10 @@ fi
 install -d -m 0755 "$WORK_DIR" "$OUT_DIR"
 cp -a -- "$archiso_profile" "$PROFILE_DIR"
 cp -a -- "$PROJECT_DIR/overlay/." "$PROFILE_DIR/airootfs/"
+# Archiso's live root account already exists, so its customization pass does
+# not populate it from /etc/skel. Seed missing dotfiles explicitly while
+# retaining root-only overrides such as .zprofile and the Fish shim.
+cp -a -n -- "$PROFILE_DIR/airootfs/etc/skel/." "$PROFILE_DIR/airootfs/root/"
 # Releng uses zsh for the live root account and has historically enabled
 # systemd-networkd's socket. Glyph enters Fish from root's zprofile and gives
 # NetworkManager exclusive ownership of networking.
