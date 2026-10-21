@@ -51,7 +51,7 @@ make iso FLAVOR=dev
 The build deliberately derives its bootloader and live-environment machinery
 from the locally installed Archiso `releng` profile. This keeps the image aligned
 with the current Archiso release rather than freezing a stale copy of the boot
-configuration in this repository. Glyph uses Zstandard level 15 for the live
+configuration in this repository. Glyph uses Zstandard level 6 for the live
 filesystem, favoring fast builds and responsive boot-time decompression over
 the smallest possible download.
 
