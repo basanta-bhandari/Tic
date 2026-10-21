@@ -165,6 +165,15 @@ replace_profile_setting iso_publisher "Glyph Linux contributors"
 replace_profile_setting iso_application "Glyph Linux text-first Arch workstation"
 replace_profile_setting iso_version "$(date -u +%Y.%m.%d)"
 
+# The broad TUI catalog contains many static binaries and small runtime files.
+# Zstandard keeps image creation and live boot responsive without changing the
+# installed footprint; level 15 is a deliberate size/speed compromise.
+grep -q '^airootfs_image_tool_options=' "$PROFILE_DIR/profiledef.sh" || \
+    die "profiledef.sh has no airootfs_image_tool_options setting"
+sed -i -E \
+    "s|^airootfs_image_tool_options=.*|airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '15')|" \
+    "$PROFILE_DIR/profiledef.sh"
+
 # Archiso normalizes overlay files to 0644 unless permissions are declared in
 # profiledef.sh. These recursive entries keep every Glyph launcher executable
 # in both rootful and rootless builds.

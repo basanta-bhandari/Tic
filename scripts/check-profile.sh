@@ -18,6 +18,8 @@ flavor="$2"
 [[ -r "$profile/airootfs/usr/local/share/glyph/docs/LINUXLINKS_TUI_100.md" ]]
 [[ "$(<"$profile/airootfs/usr/local/share/glyph/flavor")" == "$flavor" ]]
 grep -q '^iso_name="glyph-linux"$' "$profile/profiledef.sh"
+grep -q "^airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '15')$" \
+    "$profile/profiledef.sh"
 grep -q '^fish$' "$profile/packages.x86_64"
 grep -q '^networkmanager$' "$profile/packages.x86_64"
 grep -q '^base$' "$profile/packages.x86_64"
