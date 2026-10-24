@@ -1,0 +1,55 @@
+pkgname=kage-shell
+pkgver=4.9.3.zenith2
+pkgrel=1
+pkgdesc='Kage, the Zenith OS interactive shell derived from Fish'
+arch=(x86_64)
+url='https://github.com/basanta-bhandari/fish-shell'
+license=('GPL-2.0-only AND BSD-3-Clause AND ISC AND MIT AND PSF-2.0')
+depends=(glibc libgcc pcre2)
+makedepends=(cmake git jq rust)
+optdepends=(
+  'python: man-page completion parser and web configuration tool'
+  'pkgfile: command-not-found hook'
+  'wl-clipboard: Wayland clipboard integration'
+)
+provides=("fish=${pkgver}" glyph-shell)
+conflicts=(fish glyph-shell)
+replaces=(fish glyph-shell)
+install=glyph-shell.install
+backup=(etc/fish/config.fish)
+_commit=1e8518be648e07a0e5987fab1d5d9ca7299ad0eb
+source=(
+  "fish::git+https://github.com/basanta-bhandari/fish-shell.git#commit=${_commit}"
+  kage-identity.patch
+)
+sha512sums=(
+  'SKIP'
+  '68ee7f8c022b270aec275254eadde86a7f041fda12cb9f1d33edf2da5b2ec9276e571fa4c7fa431bac0cd3152f883d7d0cbd06d0a117f7a22761444ec325b1f1'
+)
+
+prepare() {
+  patch -d fish -Np1 -i "$srcdir/kage-identity.patch"
+}
+
+build() {
+  local cmake_options=(
+    -B build
+    -S fish
+    -D CMAKE_INSTALL_PREFIX=/usr
+    -D CMAKE_INSTALL_SYSCONFDIR=/etc
+    -D CMAKE_BUILD_TYPE=Release
+    -D WITH_DOCS=OFF
+    -D FISH_USE_SYSTEM_PCRE2=ON
+    -D WITH_MESSAGE_LOCALIZATION=ON
+    -W no-dev
+  )
+  CXXFLAGS+=" ${CPPFLAGS}" cmake "${cmake_options[@]}"
+  cmake --build build --parallel
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  ln -s fish "$pkgdir/usr/bin/kage"
+  ln -s fish "$pkgdir/usr/bin/glyph-shell"
+  install -Dm644 fish/GLYPH.md "$pkgdir/usr/share/doc/kage-shell/KAGE.md"
+}

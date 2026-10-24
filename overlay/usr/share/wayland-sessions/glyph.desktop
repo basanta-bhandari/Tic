@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Zenith OS — Imperium
+Comment=Imperium compositor and terminal workspace with the Kage shell
+Exec=/usr/local/bin/glyph-session
+Type=Application
+DesktopNames=Imperium

@@ -8,7 +8,7 @@ usage() {
     cat <<'EOF'
 Usage: glyph-install
 
-Run the official Archinstall guided installer, then deploy the Glyph package
+Run the official Archinstall guided installer, then deploy the Zenith package
 set and text desktop into its mounted target.
 EOF
 }
@@ -22,14 +22,14 @@ esac
 ((EUID == 0)) || { printf 'glyph-install must run as root.\n' >&2; exit 1; }
 command -v archinstall >/dev/null 2>&1 || { printf 'archinstall is not installed.\n' >&2; exit 1; }
 
-glyph_confirm "Install Glyph Linux" \
+glyph_confirm "Install Zenith OS" \
     "Installation can repartition and erase disks.\n\nThe official Archinstall interface will handle disks, encryption, locale, bootloader, users, and base installation. Read every summary before confirming.\n\nContinue?" || exit 0
 
 clear
 archinstall
 install_status=$?
 if ((install_status != 0)); then
-    printf '\nArchinstall exited with status %d; Glyph deployment was not attempted.\n' "$install_status" >&2
+    printf '\nArchinstall exited with status %d; Zenith deployment was not attempted.\n' "$install_status" >&2
     exit "$install_status"
 fi
 
@@ -53,6 +53,6 @@ glyph-deploy "$target"
 deploy_status=$?
 if ((deploy_status == 0)); then
     glyph_message "Installation complete" \
-        "Glyph Linux is installed. Remove the installation medium and reboot when ready."
+        "Zenith OS is installed. Remove the installation medium and reboot when ready."
 fi
 exit "$deploy_status"

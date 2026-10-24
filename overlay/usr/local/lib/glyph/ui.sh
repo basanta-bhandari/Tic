@@ -4,11 +4,11 @@ export DIALOGRC="${DIALOGRC:-/etc/glyph/dialogrc}"
 export LESS="${LESS:--RF}"
 
 glyph_dialog() {
-    dialog --stdout --colors --backtitle " GLYPH LINUX // TEXT WORKSTATION " "$@"
+    dialog --stdout --colors --backtitle " ZENITH OS // KAGE + IMPERIUM + ARCA " "$@"
 }
 
 glyph_message() {
-    glyph_dialog --title "${1:-Glyph}" --msgbox "${2:-}" 10 68
+    glyph_dialog --title "${1:-Zenith}" --msgbox "${2:-}" 10 68
 }
 
 glyph_confirm() {
@@ -16,7 +16,7 @@ glyph_confirm() {
 }
 
 glyph_pause() {
-    printf '\n\033[33mPress Enter to return to Glyph...\033[0m'
+    printf '\n\033[33mPress Enter to return to Zenith...\033[0m'
     read -r _
 }
 

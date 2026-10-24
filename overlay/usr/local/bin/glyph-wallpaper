@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly WALLS_REPO="${GLYPH_WALLS_REPO:-basanta-bhandari/walls}"
+readonly WALLS_REF="${GLYPH_WALLS_REF:-HEAD}"
+readonly RAW_ROOT="https://raw.githubusercontent.com/$WALLS_REPO/$WALLS_REF"
+readonly CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/glyph"
+readonly INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/backgrounds/glyph"
+readonly STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+readonly CURRENT_FILE="$STATE_DIR/wallpaper"
+readonly FALLBACK="$CACHE_DIR/wallpaper.png"
+
+die() {
+    printf 'glyph-wallpaper: %s\n' "$*" >&2
+    exit 1
+}
+
+require_network_tools() {
+    command -v curl >/dev/null 2>&1 || die 'curl is required'
+    command -v jq >/dev/null 2>&1 || die 'jq is required'
+}
+
+fetch_text() {
+    curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location "$1"
+}
+
+uri_segment() {
+    jq -rn --arg value "$1" '$value | @uri'
+}
+
+categories() {
+    require_network_tools
+    fetch_text "$RAW_ROOT/.github/README.md" |
+        sed -nE 's|.*\[Browse\]\(\.\./([^/]+)/README\.md\).*|\1|p' |
+        LC_ALL=C sort -u
+}
+
+category_files() {
+    local category="$1"
+    [[ "$category" =~ ^[a-zA-Z0-9._-]+$ ]] || die 'invalid category name'
+    fetch_text "$RAW_ROOT/$(uri_segment "$category")/README.md" |
+        sed -nE 's|.*<a href="([^"]+)">.*|\1|p' |
+        awk '!/^README\.md$/ && $0 !~ /\// && $0 !~ /^\.\.?$/'
+}
+
+choose() {
+    local prompt="$1"
+    if command -v fzf >/dev/null 2>&1; then
+        fzf --prompt="$prompt"
+    else
+        sed -n '1p'
+    fi
+}
+
+selected_wallpaper() {
+    local selected=""
+    [[ -r "$CURRENT_FILE" ]] && IFS= read -r selected <"$CURRENT_FILE"
+    if [[ -n "$selected" && -r "$selected" ]]; then
+        printf '%s\n' "$selected"
+    elif [[ -r "$FALLBACK" ]]; then
+        printf '%s\n' "$FALLBACK"
+    fi
+}
+
+apply_wallpaper() {
+    local image="$1"
+    [[ -r "$image" ]] || die "wallpaper is not readable: $image"
+    install -d -m 0755 "$STATE_DIR"
+    printf '%s\n' "$(realpath -- "$image")" >"$CURRENT_FILE"
+    if command -v swaymsg >/dev/null 2>&1 && [[ -n ${SWAYSOCK:-} ]]; then
+        swaymsg output '*' bg "$(realpath -- "$image")" fill >/dev/null
+    fi
+    printf 'Using wallpaper: %s\n' "$image"
+}
+
+generate_fallback() {
+    local start="${1:-#08090d}"
+    local end="${2:-#2b1800}"
+    install -d -m 0755 "$CACHE_DIR"
+    command -v magick >/dev/null 2>&1 || return 0
+    magick -size 1920x1080 \
+        "gradient:$start-$end" \
+        -fill '#ffffff0d' -stroke '#ffffff18' -strokewidth 1 \
+        -draw 'path M 0,820 L 1920,180 M 0,980 L 1920,340' \
+        -fill '#ffffff10' -stroke none \
+        -draw 'circle 1530,260 1740,260 circle 280,880 390,880' \
+        "$FALLBACK"
+}
+
+install_remote() {
+    require_network_tools
+    local category="${1:-}"
+    local filename="${2:-}"
+    [[ -n "$category" ]] || category="$(categories | choose 'Wallpaper category> ')"
+    [[ -n "$category" ]] || return 0
+    [[ "$category" =~ ^[a-zA-Z0-9._-]+$ ]] || die 'invalid category name'
+    [[ -n "$filename" ]] || filename="$(category_files "$category" | choose 'Wallpaper> ')"
+    [[ -n "$filename" ]] || return 0
+    [[ "$filename" != */* && "$filename" != . && "$filename" != .. ]] || die 'invalid wallpaper name'
+
+    local destination_dir="$INSTALL_DIR/$category"
+    local destination="$destination_dir/$filename"
+    local temporary mime
+    install -d -m 0755 "$destination_dir"
+    temporary="$(mktemp "$destination_dir/.download.XXXXXX")"
+    trap 'rm -f -- "$temporary"' RETURN
+    curl --proto '=https' --tlsv1.2 --fail --show-error --location \
+        --output "$temporary" \
+        "$RAW_ROOT/$(uri_segment "$category")/$(uri_segment "$filename")"
+    mime="$(file --brief --mime-type -- "$temporary")"
+    [[ "$mime" == image/* ]] || die "downloaded file is not an image ($mime)"
+    mv -- "$temporary" "$destination"
+    trap - RETURN
+    apply_wallpaper "$destination"
+}
+
+usage() {
+    cat <<EOF
+Usage: glyph-wallpaper ACTION [ARGUMENTS]
+
+  install|get [CATEGORY] [FILE]  browse your indexed GitHub walls fork,
+                                 download one image, and apply it
+  use [PATH]                     choose an installed image and apply it
+  list [CATEGORY]                list indexed categories or category files
+  current                        print the active wallpaper path
+
+Repository: https://github.com/$WALLS_REPO
+EOF
+}
+
+action="${1:-menu}"
+shift || true
+case "$action" in
+    install|get) install_remote "${1:-}" "${2:-}" ;;
+    use)
+        image="${1:-}"
+        [[ -n "$image" ]] || image="$(find "$INSTALL_DIR" -type f 2>/dev/null | choose 'Installed wallpaper> ')"
+        [[ -n "$image" ]] && apply_wallpaper "$image"
+        ;;
+    list)
+        if [[ -n ${1:-} ]]; then category_files "$1"; else categories; fi
+        ;;
+    current) selected_wallpaper ;;
+    --refresh)
+        generate_fallback "${1:-#08090d}" "${2:-#2b1800}"
+        image="$(selected_wallpaper)"
+        [[ -z "$image" || "$image" == "$FALLBACK" ]] || exit 0
+        [[ -r "$FALLBACK" ]] && apply_wallpaper "$FALLBACK" >/dev/null
+        ;;
+    --sway)
+        image="$(selected_wallpaper)"
+        if [[ -z "$image" ]]; then
+            generate_fallback
+            image="$(selected_wallpaper)"
+        fi
+        if [[ -n "$image" ]]; then exec swaybg -i "$image" -m fill; fi
+        exec swaybg -c '#08090d'
+        ;;
+    menu)
+        choice="$(printf '%s\n' 'install — get from GitHub' 'use — installed wallpaper' 'current — show active path' |
+            choose 'Wallpaper action> ')" || exit 0
+        case "$choice" in
+            install*) install_remote ;;
+            use*) "$0" use ;;
+            current*) selected_wallpaper ;;
+        esac
+        ;;
+    -h|--help|help) usage ;;
+    *) usage >&2; exit 2 ;;
+esac

@@ -35,7 +35,6 @@ glow
 visidata
 poppler
 chafa
-imagemagick
 presenterm
 libqalculate
 
@@ -44,6 +43,7 @@ cmus
 mpv
 ncmpcpp
 mpd
+vlc
 
 # Finance, privacy, and personal tools
 hledger

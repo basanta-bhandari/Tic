@@ -1,37 +1,66 @@
 # Architecture
 
-Glyph intentionally remains a thin product layer over Arch rather than forking
+Zenith derives its ISO plumbing, graphical package base, and visual assets from
+a pinned official Archcraft profile. Zenith then owns the default session:
+
+```text
+Archcraft / Arch Linux
+└── Imperium session (transitional Sway adapter)
+    └── Kitty GPU terminal
+        └── imperium (`glyph-mux` compatibility backend)
+            ├── Kage command surfaces
+            ├── Zenith Home and first-party panels
+            ├── themes and wallpapers
+            └── native GUI escape hatches
+```
+
+Imperium currently delegates terminal emulation, rendering, tabs, and
+splits to Kitty's remote-control protocol. Zellij remains installed for true
+PTY persistence and remote detach/reattach. This keeps the custom Zenith control
+plane small enough to audit while leaving room for a future PTY-owning daemon.
+
+Wallpapers are not embedded wholesale. `glyph-wallpaper` reads the generated
+category indexes in `basanta-bhandari/walls`, validates category and filename
+segments, downloads one selected image over HTTPS, verifies that it is an image,
+and stores it in the user's XDG data directory. An offline-generated gradient
+is always available.
+
+Zenith intentionally remains a thin product layer over Arch rather than forking
 the package manager, kernel, init system, or repositories.
 
 ## Layers
 
 1. Arch Linux supplies the kernel, firmware, drivers, Pacman, systemd, security
    updates, and package ecosystem.
-2. Archiso supplies BIOS/UEFI boot, the live root filesystem, and recovery
-   environment.
-3. `overlay/` supplies Glyph's branding, Fish environment, control surfaces,
-   opener, installer bridge, and system defaults.
+2. Archcraft's pinned Archiso profile supplies BIOS/UEFI boot, the graphical
+   base, visual packages, live root filesystem, and recovery environment.
+3. `overlay/` supplies Zenith's transitional Sway/Kitty session, Kage environment, control surfaces,
+   opener, installer bridge, and system defaults. Zenith Home is currently a compact
+   Python/curses surface so its interaction model can be tested before the shared
+   native UI framework is selected.
 4. Focused upstream applications provide editing, files, web, mail, calendars,
    monitoring, documents, and media.
 
-All launchers are intentionally replaceable shell programs. The underlying
-applications remain available directly and preserve their normal configuration
-formats. A launcher failure therefore cannot lock the user out of the system.
+All control surfaces are replaceable clients. The underlying applications remain
+available directly and preserve their normal configuration formats. A panel
+failure therefore cannot lock the user out of the system.
 
-## Why dialog and the Linux console
+## Terminal UI transition
 
-`dialog` is mature, tiny, available in the official Arch repositories, and
-works directly on the kernel virtual console and over SSH. This avoids pulling
-in a display server, compositor, browser engine, or widget toolkit. ANSI and
-ncurses degrade gracefully on serial terminals.
+Zenith Home now uses a responsive curses dashboard with the Signal theme, live
+status, category tabs, search and quick launch. `dialog` remains only as a small
+recovery/migration fallback. Once the project owner selects the framework in
+`docs/ESSENTIALS.md`, Home and every first-party panel move onto the maintained
+`glyph-ui` fork. ANSI/curses paths continue to degrade gracefully on serial
+terminals and recovery TTYs.
 
-Fish is the user shell because completion, history, discoverability, and sane
+Kage retains Fish compatibility because completion, history, discoverability, and sane
 interactive defaults are more important here than strict POSIX syntax. System
 scripts remain Bash so boot and recovery never depend on Fish behavior.
 
 ## Application contract
 
-- Every Glyph TUI operation has a direct CLI escape hatch.
+- Every Zenith TUI operation has a direct CLI escape hatch.
 - The launcher never owns user data.
 - Pacman remains the single source of truth for installed software.
 - Systemd remains the single source of truth for services.
@@ -45,12 +74,13 @@ scripts remain Bash so boot and recovery never depend on Fish behavior.
 and locale to Archinstall. `glyph-deploy` then installs the selected package
 manifest, copies the same root overlay used by the live image, and applies a
 small idempotent post-install script inside the target. This division keeps the
-high-risk installer logic upstream while letting Glyph own its user experience.
+high-risk installer logic upstream while letting Zenith own its user experience.
 
 ## Release model
 
-The build consumes the Archiso profile installed on the builder. This keeps boot
-details compatible with the installed Archiso version. Package names are
-validated before the build; package versions intentionally track Arch rolling
-release repositories. Release builders should pin a dated Arch Linux Archive
-mirror when byte-for-byte dependency resolution matters.
+The build fetches the official Archcraft ISO profile at the commit pinned by
+`scripts/fetch-archcraft-profile.sh`. `ARCHCRAFT_REF` can deliberately select a
+different revision. Package names are validated before the build; package
+versions intentionally track Arch and Archcraft rolling repositories. Release
+builders should also pin dated package mirrors when byte-for-byte dependency
+resolution matters.

@@ -1,4 +1,4 @@
-# Glyph's interactive Fish environment. System scripts intentionally use Bash.
+# Kage is Zenith's Fish-compatible interactive shell. System scripts use Bash.
 if type -q nvim
     set -gx EDITOR nvim
 else
@@ -71,6 +71,6 @@ function yy
 end
 
 # TTY1 is the desktop. Other TTYs and SSH sessions remain ordinary shells.
-if status is-login; and not set -q GLYPH_NO_LAUNCH; and test (tty) = /dev/tty1
-    glyph
+if status is-login; and not set -q ZENITH_NO_LAUNCH; and not set -q GLYPH_NO_LAUNCH; and test (tty) = /dev/tty1
+    zenith
 end

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command -v swaymsg >/dev/null 2>&1 || { printf 'glyph-overview: not in Sway\n' >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { printf 'glyph-overview: jq is required\n' >&2; exit 1; }
+command -v fzf >/dev/null 2>&1 || { printf 'glyph-overview: fzf is required\n' >&2; exit 1; }
+
+selection="$(swaymsg -t get_tree -r | jq -r '
+    .. | objects |
+    select((.type? == "con" or .type? == "floating_con") and (.pid? != null) and (.name? != null)) |
+    "\(.id)\tworkspace \(.workspace // "?")\t\(.app_id // .window_properties.class // "surface")\t\(.name)"
+' | fzf --delimiter=$'\t' --with-nth=2.. --prompt='Imperium workspace> ')" || exit 0
+
+container_id="${selection%%$'\t'*}"
+[[ "$container_id" =~ ^[0-9]+$ ]] || exit 0
+swaymsg "[con_id=$container_id] focus" >/dev/null

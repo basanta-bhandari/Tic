@@ -6,7 +6,12 @@ set -euo pipefail
     exit 1
 }
 
-systemctl set-default multi-user.target
+if command -v sway >/dev/null 2>&1 && command -v kitty >/dev/null 2>&1 && command -v sddm >/dev/null 2>&1; then
+    systemctl set-default graphical.target
+    systemctl enable sddm.service
+else
+    systemctl set-default multi-user.target
+fi
 systemctl enable NetworkManager.service
 systemctl enable bluetooth.service
 systemctl enable gpm.service
@@ -15,7 +20,7 @@ systemctl enable fstrim.timer
 systemctl enable paccache.timer
 systemctl enable systemd-timesyncd.service
 
-# NetworkManager owns links in Glyph. Mask alternative live-image network
+# NetworkManager owns links in Zenith. Mask alternative live-image network
 # managers that may otherwise race it after installation.
 systemctl mask systemd-networkd.service systemd-networkd.socket
 systemctl mask iwd.service
@@ -34,12 +39,12 @@ while IFS=: read -r user _ uid gid _ home shell; do
     ((uid >= 1000 && uid < 60000)) || continue
     [[ -d "$home" ]] || continue
 
-    usermod -s /usr/bin/fish "$user"
+    usermod -s /usr/bin/kage "$user"
     cp -an /etc/skel/. "$home/"
     chown -R "$uid:$gid" "$home/.config" "$home/.tmux.conf" 2>/dev/null || true
 done < /etc/passwd
 
-usermod -s /usr/bin/fish root
+usermod -s /usr/bin/kage root
 
 while IFS=$'\t' read -r alias _; do
     [[ -n "$alias" && "$alias" != \#* ]] || continue
@@ -49,4 +54,4 @@ done </etc/glyph/capabilities.tsv
 
 install -d -m 0755 /var/lib/glyph
 printf 'installed_at=%(%Y-%m-%dT%H:%M:%SZ)T\n' -1 >/var/lib/glyph/install-state
-printf 'Glyph post-install configuration complete.\n'
+printf 'Zenith post-install configuration complete.\n'

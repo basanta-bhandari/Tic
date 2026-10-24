@@ -7,7 +7,9 @@ flavor="$2"
 
 [[ -x "$profile/airootfs/usr/local/bin/glyph" ]]
 [[ -x "$profile/airootfs/usr/local/bin/glyph-deploy" ]]
-[[ -x "$profile/airootfs/usr/local/bin/tac" ]]
+[[ -x "$profile/airootfs/usr/local/bin/arca" ]]
+[[ -x "$profile/airootfs/usr/local/bin/zenith" ]]
+[[ -x "$profile/airootfs/usr/local/bin/imperium" ]]
 [[ -L "$profile/airootfs/usr/local/bin/file-manager-1" ]]
 [[ "$(readlink "$profile/airootfs/usr/local/bin/file-manager-1")" == glyph-cap ]]
 [[ -s "$profile/airootfs/root/.newsboat/urls" ]]
@@ -15,12 +17,14 @@ flavor="$2"
 [[ -r "$profile/airootfs/root/.config/yazi/yazi.toml" ]]
 [[ -r "$profile/airootfs/root/.tmux.conf" ]]
 [[ -r "$profile/airootfs/usr/local/share/glyph/packages.x86_64" ]]
+compgen -G "$profile/airootfs/usr/local/share/glyph/packages/kage-shell-*.pkg.tar.zst" >/dev/null
 [[ -r "$profile/airootfs/usr/local/share/glyph/docs/LINUXLINKS_TUI_100.md" ]]
 [[ "$(<"$profile/airootfs/usr/local/share/glyph/flavor")" == "$flavor" ]]
-grep -q '^iso_name="glyph-linux"$' "$profile/profiledef.sh"
+grep -q '^iso_name="zenith-os"$' "$profile/profiledef.sh"
 grep -q "^airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '6')$" \
     "$profile/profiledef.sh"
-grep -q '^fish$' "$profile/packages.x86_64"
+grep -q '^kage-shell$' "$profile/packages.x86_64"
+! grep -q '^fish$' "$profile/packages.x86_64"
 grep -q '^networkmanager$' "$profile/packages.x86_64"
 grep -q '^base$' "$profile/packages.x86_64"
 

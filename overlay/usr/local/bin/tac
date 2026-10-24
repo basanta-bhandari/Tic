@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-# TAC is Glyph's stable-capability TUI over Pacman. Keep the implementation in
-# glyph-pkg so existing images and scripts retain a compatible command name.
-exec /usr/local/bin/glyph-pkg "$@"

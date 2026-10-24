@@ -8,7 +8,7 @@ usage() {
     cat <<'EOF'
 Usage: glyph-doctor
 
-Print a read-only health report for the current Glyph system.
+Print a read-only health report for the current Zenith system.
 EOF
 }
 
@@ -29,7 +29,7 @@ heading() {
     printf '%s\n' '────────────────────────────────────────────────────────────'
 }
 
-printf '%sGLYPH DOCTOR%s  %(%Y-%m-%d %H:%M:%S %Z)T\n' "$bold" "$reset" -1
+printf '%sZENITH DOCTOR%s  %(%Y-%m-%d %H:%M:%S %Z)T\n' "$bold" "$reset" -1
 printf '%s on %s • %s\n' "$(hostname)" "$(uname -r)" "$(uname -m)"
 
 heading "FAILED SERVICES"
@@ -71,7 +71,7 @@ fi
 
 if command -v checkupdates >/dev/null 2>&1 && timeout 25 checkupdates >"$updates_file" 2>/dev/null; then
     update_count="$(wc -l <"$updates_file" 2>/dev/null || printf 0)"
-    printf '%s update(s) are available. Run tac to review them.\n' "$update_count"
+    printf '%s update(s) are available. Run arca to review them.\n' "$update_count"
 else
     printf '%sUpdate check found none, is offline, or timed out.%s\n' "$dim" "$reset"
 fi

@@ -1,0 +1,6 @@
+# id<TAB>label<TAB>foreground<TAB>background<TAB>accent<TAB>selection<TAB>gradient-start<TAB>gradient-end
+signal	Signal Dark	#c8ccd4	#101218	#55aaff	#263244	#090b10	#172338
+amber	Amber Glass	#ffd75f	#090806	#ffb000	#5f4300	#070707	#382100
+aurora	Aurora	#d7f9ff	#071014	#64d8cb	#17454b	#05080d	#123b46
+violet	Violet Night	#eee5ff	#0c0912	#bd93f9	#39265a	#08070d	#2c1745
+mono	Paper Terminal	#e8e8e8	#101010	#ffffff	#404040	#090909	#242424

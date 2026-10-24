@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Zenith Home. The historical `glyph` command remains as a compatibility API.
+exec /usr/local/bin/glyph "$@"

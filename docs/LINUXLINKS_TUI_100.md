@@ -3,7 +3,7 @@
 Source: <https://www.linuxlinks.com/100-awesome-must-have-tui-linux-apps/>
 
 Fetched on 2026-10-21. Names below preserve the article's spelling and order.
-Glyph's `full` flavor installs every suitable entry currently packaged in the
+Zenith's `full` flavor installs every suitable entry currently packaged in the
 official Arch repositories, plus equivalent modern tools where appropriate.
 Entries that require AUR builds, language-specific installers, a graphical
 session, or abandoned upstreams remain a coverage checklist rather than being
@@ -110,7 +110,7 @@ silently downloaded into the trusted base image.
 99. systeroid
 100. Nomad Network
 
-## Extra modern Glyph selections
+## Extra modern Zenith selections
 
 The full image also includes tools requested during live testing or selected as
 current counterparts: Bluetui, Impala, OpenCode, Fastfetch, Yazi, aerc, Glow,

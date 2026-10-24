@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Minimal shape fixture used to test Glyph's profile composition. This is not a
+# Minimal shape fixture used to test Zenith's profile composition. This is not a
 # bootable profile; real builds derive from /usr/share/archiso/configs/releng.
 iso_name="archlinux"
 iso_label="ARCH_202601"

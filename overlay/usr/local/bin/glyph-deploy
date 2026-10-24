@@ -8,7 +8,7 @@ usage() {
     cat <<'EOF'
 Usage: glyph-deploy [--skip-packages] TARGET
 
-Install Glyph's package set, root overlay, and system defaults into a mounted
+Install Zenith's package set, root overlay, and system defaults into a mounted
 Arch Linux root filesystem. TARGET must be a mountpoint and may not be `/`.
 
 Options:
@@ -45,16 +45,41 @@ mountpoint -q "$target" || die "target is not a mountpoint: $target"
 [[ -r "$target/etc/pacman.conf" && -x "$target/usr/bin/pacman" ]] || \
     die "target does not look like an installed Arch root"
 
-printf 'Deploying Glyph Linux to %s\n' "$target"
+printf 'Deploying Zenith OS to %s\n' "$target"
 if ((skip_packages == 0)); then
     mapfile -t packages < <(awk '!/^[[:space:]]*(#|$)/ {print $1}' "$PAYLOAD/packages.x86_64")
     ((${#packages[@]})) || die "package manifest is empty"
-    arch-chroot "$target" pacman -Syu --needed --noconfirm -- "${packages[@]}"
+
+    # Maintained forks travel inside the ISO so installation never depends on
+    # a temporary build-machine file:// repository. Keep them in Pacman's
+    # normal cache, install them first, then exclude their names from the
+    # repository transaction.
+    shopt -s nullglob
+    custom_packages=("$PAYLOAD/packages"/*.pkg.tar.zst)
+    shopt -u nullglob
+    if ((${#custom_packages[@]})); then
+        install -d -m 0755 "$target/var/cache/pacman/pkg"
+        install -m 0644 "${custom_packages[@]}" "$target/var/cache/pacman/pkg/"
+        custom_chroot_paths=()
+        for package_path in "${custom_packages[@]}"; do
+            custom_chroot_paths+=("/var/cache/pacman/pkg/${package_path##*/}")
+        done
+        arch-chroot "$target" pacman -U --needed --noconfirm -- "${custom_chroot_paths[@]}"
+        filtered_packages=()
+        for package_name in "${packages[@]}"; do
+            [[ "$package_name" == kage-shell ]] || filtered_packages+=("$package_name")
+        done
+        packages=("${filtered_packages[@]}")
+    fi
+
+    ((${#packages[@]})) && \
+        arch-chroot "$target" pacman -Syu --needed --noconfirm -- "${packages[@]}"
 fi
 
 cp -a -- "$PAYLOAD/rootfs/." "$target/"
-chmod 0755 "$target"/usr/local/bin/glyph* "$target/usr/local/bin/tac" \
+chmod 0755 "$target"/usr/local/bin/glyph* "$target/usr/local/bin/arca" \
+    "$target/usr/local/bin/zenith" "$target/usr/local/bin/imperium" \
     "$target/usr/local/lib/glyph/"*.sh
 
 arch-chroot "$target" /usr/local/lib/glyph/post-install.sh
-printf '\nGlyph deployment complete.\n'
+printf '\nZenith deployment complete.\n'

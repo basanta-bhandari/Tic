@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""Zenith's curated, Pacman-first TUI application store."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import os
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+
+CATALOG = Path(os.environ.get("GLYPH_TUI_CATALOG", "/etc/glyph/tui-catalog.tsv"))
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph/repository-packages"
+SYNC_DB = Path("/var/lib/pacman/sync")
+
+
+@dataclass(frozen=True)
+class App:
+    rank: int
+    name: str
+    category: str
+    package: str
+    command: str
+    description: str
+
+
+def load_catalog(path: Path) -> list[App]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = csv.reader((line for line in handle if not line.startswith("#")), delimiter="\t")
+        apps = [App(int(rank), name, category, package, command, description)
+                for rank, name, category, package, command, description in rows]
+    if len(apps) != 100 or {app.rank for app in apps} != set(range(1, 101)):
+        raise SystemExit(f"invalid catalog: expected ranks 1-100, found {len(apps)} entries")
+    return apps
+
+
+def repository_packages() -> set[str]:
+    databases = sorted(SYNC_DB.glob("*.db"))
+    fingerprint = ":".join(f"{path.name}:{path.stat().st_mtime_ns}" for path in databases)
+    try:
+        cached = CACHE.read_text(encoding="utf-8").splitlines()
+        if cached and cached[0] == fingerprint:
+            return set(cached[1:])
+    except OSError:
+        pass
+
+    result = subprocess.run(
+        ["pacman", "-Slq"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+    )
+    packages = set(result.stdout.splitlines()) if result.returncode == 0 else set()
+    if packages:
+        try:
+            CACHE.parent.mkdir(parents=True, exist_ok=True)
+            temporary = CACHE.with_suffix(".tmp")
+            temporary.write_text(fingerprint + "\n" + "\n".join(sorted(packages)) + "\n", encoding="utf-8")
+            temporary.replace(CACHE)
+        except OSError:
+            pass
+    return packages
+
+
+def status(app: App, available: set[str]) -> str:
+    if app.command != "-" and shutil.which(app.command):
+        return "INSTALLED"
+    if app.package != "-" and app.package in available:
+        return "AVAILABLE"
+    if app.package != "-":
+        return "UNAVAILABLE"
+    return "EXTERNAL"
+
+
+def display_rows(apps: list[App], available: set[str]) -> list[str]:
+    return [
+        f"{app.rank:03d}\t{status(app, available):11}\t{app.name}\t{app.category}\t"
+        f"{app.description}\t{app.package}\t{app.command}"
+        for app in apps
+    ]
+
+
+def choose(rows: list[str]) -> list[int]:
+    if not shutil.which("fzf"):
+        raise SystemExit("fzf is required; install the Zenith core package set")
+    result = subprocess.run(
+        [
+            "fzf", "--multi", "--layout=reverse", "--border=rounded",
+            "--delimiter=\t", "--with-nth=1,2,3,4,5",
+            "--header=TAB selects multiple • ENTER reviews • type to search",
+            "--prompt=Zenith 100 › ", "--marker=◆", "--pointer=▶",
+            "--preview=printf 'Name: %s\\nStatus: %s\\nCategory: %s\\nPackage: %s\\nCommand: %s\\n\\n%s\\n' {3} {2} {4} {6} {7} {5}",
+            "--preview-window=up,7,wrap",
+        ],
+        input="\n".join(rows), text=True, stdout=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        return []
+    return [int(line.split("\t", 1)[0]) for line in result.stdout.splitlines()]
+
+
+def install(apps: list[App], ranks: list[int], available: set[str]) -> int:
+    selected = [app for app in apps if app.rank in ranks]
+    packages = sorted({app.package for app in selected if status(app, available) == "AVAILABLE"})
+    installed = [app.name for app in selected if status(app, available) == "INSTALLED"]
+    unavailable = [app.name for app in selected if status(app, available) in {"EXTERNAL", "UNAVAILABLE"}]
+
+    if installed:
+        print("Already installed: " + ", ".join(installed))
+    if unavailable:
+        print("Not in enabled signed repositories: " + ", ".join(unavailable))
+        print("Zenith will not execute unverified curl, language-manager, or AUR commands automatically.")
+    if not packages:
+        return 0
+
+    print("\nPacman transaction preview:")
+    print("  pacman -S --needed -- " + " ".join(packages))
+    try:
+        answer = input(f"Install {len(packages)} package(s)? [y/N] ").strip().lower()
+    except EOFError:
+        return 1
+    if answer not in {"y", "yes"}:
+        return 0
+    command = ["pacman", "-S", "--needed", "--", *packages]
+    if os.geteuid() != 0:
+        command.insert(0, "sudo")
+    return subprocess.run(command).returncode
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Browse and install the LinuxLinks 100 TUI catalog")
+    parser.add_argument("--list", action="store_true", help="print the catalog without opening fzf")
+    parser.add_argument("--missing", action="store_true", help="with --list, omit installed entries")
+    parser.add_argument("--catalog", type=Path, default=CATALOG)
+    args = parser.parse_args()
+
+    apps = load_catalog(args.catalog)
+    available = repository_packages()
+    rows = display_rows(apps, available)
+    if args.list:
+        for app, row in zip(apps, rows):
+            if not args.missing or status(app, available) != "INSTALLED":
+                print(row)
+        return 0
+    ranks = choose(rows)
+    return install(apps, ranks, available) if ranks else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

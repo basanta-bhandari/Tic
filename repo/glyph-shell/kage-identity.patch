@@ -1,0 +1,83 @@
+diff --git a/GLYPH.md b/GLYPH.md
+index 4f65c5b..5d9fd85 100644
+--- a/GLYPH.md
++++ b/GLYPH.md
+@@ -1,14 +1,15 @@
+-# Glyph Shell
++# Kage
+ 
+-Glyph Shell is Glyph Linux's compatibility-preserving Fish fork. It keeps
++Kage is Zenith OS's compatibility-preserving Fish fork. It keeps
+ Fish syntax, completions, and the `fish` executable name so existing scripts
+-continue to work, while giving Glyph a maintained integration point for shell
++continue to work, while giving Zenith a maintained integration point for shell
+ UX, system actions, and rendering-aware features.
+ 
+ The first downstream delta is deliberately small:
+ 
+-- a Glyph-specific interactive greeting;
+-- read-only `$GLYPH_SHELL_VERSION` and `$GLYPH_SHELL_VARIANT` variables;
++- a Kage-specific interactive greeting;
++- read-only `$KAGE_SHELL_VERSION` and `$KAGE_SHELL_VARIANT` variables;
++- legacy `$GLYPH_SHELL_*` aliases for migration;
+ - fork provenance in Cargo workspace metadata.
+ 
+ New downstream work should remain in focused commits so upstream Fish updates
+diff --git a/share/functions/fish_greeting.fish b/share/functions/fish_greeting.fish
+index 5f7ce92..da8bb15 100644
+--- a/share/functions/fish_greeting.fish
++++ b/share/functions/fish_greeting.fish
+@@ -1,12 +1,12 @@
+ function fish_greeting
+     if not set -q fish_greeting
+-        set -l line1 'Glyph Shell — text-first, fast, and interactive'
+-        set -l line2 \n(printf 'Type %shelp%s for shell help or %sglyph help%s for the system guide' (set_color green) (set_color --reset) (set_color cyan) (set_color --reset))
++        set -l line1 'Kage — the Zenith OS shell'
++        set -l line2 \n(printf 'Type %shelp%s for shell help or %szenith help%s for the system guide' (set_color green) (set_color --reset) (set_color cyan) (set_color --reset))
+         set -g fish_greeting "$line1$line2"
+     end
+ 
+     if set -q fish_private_mode && set -q fish_greeting[1]
+-        set -l line "Glyph Shell is in private mode; history will not be persisted."
++        set -l line "Kage is in private mode; history will not be persisted."
+         set -g fish_greeting $fish_greeting\n$line
+     end
+ 
+diff --git a/src/env/environment.rs b/src/env/environment.rs
+index 2292f4d..7e42e93 100644
+--- a/src/env/environment.rs
++++ b/src/env/environment.rs
+@@ -688,11 +688,18 @@ pub fn env_init(vars: &EnvStack, do_uvars: bool, default_paths: bool) {
+     let version = str2wcstring(crate::BUILD_VERSION);
+     vars.set_one(L!("version"), global_mode, version.clone());
+     vars.set_one(L!("FISH_VERSION"), global_mode, version.clone());
+-    vars.set_one(L!("GLYPH_SHELL_VERSION"), global_mode, version);
++    vars.set_one(L!("KAGE_SHELL_VERSION"), global_mode, version.clone());
++    vars.set_one(
++        L!("KAGE_SHELL_VARIANT"),
++        global_mode,
++        L!("Kage").to_owned(),
++    );
++    // Migration aliases for installations created before the Zenith rename.
++    vars.set_one(L!("GLYPH_SHELL_VERSION"), global_mode, version);
+     vars.set_one(
+         L!("GLYPH_SHELL_VARIANT"),
+         global_mode,
+-        L!("Glyph").to_owned(),
++        L!("Kage").to_owned(),
+     );
+ 
+     // Set the $fish_pid variable.
+diff --git a/src/env/impl/var.rs b/src/env/impl/var.rs
+index b65c3b7..65969a6 100644
+--- a/src/env/impl/var.rs
++++ b/src/env/impl/var.rs
+@@ -110,6 +110,8 @@ mod electric {
+         var(L!("FISH_VERSION"), Regular),
+         var(L!("GLYPH_SHELL_VARIANT"), Regular),
+         var(L!("GLYPH_SHELL_VERSION"), Regular),
++        var(L!("KAGE_SHELL_VARIANT"), Regular),
++        var(L!("KAGE_SHELL_VERSION"), Regular),
+         exported_var(L!("PWD"), Computed(GET_PWD)),
+         exported_var(L!("SHLVL"), Regular),
+         var(L!("_"), Regular),

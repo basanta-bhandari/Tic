@@ -1,7 +1,7 @@
-# Tic package repository
+# Arca package repository
 
-Glyph uses Pacman for dependency solving, signatures, upgrades, rollback via the
-package cache, and file ownership. TAC supplies stable capability
+Zenith uses Pacman for dependency solving, signatures, upgrades, rollback via the
+package cache, and file ownership. Arca supplies stable capability
 names such as `file-manager-1`; it does not replace Pacman with a second package
 database.
 
@@ -21,6 +21,17 @@ sudo pacman -S --needed base-devel pacman-contrib
 Set `GLYPH_REPO_SIGNING_KEY` to a GPG key ID to sign the repository database.
 Production publishing should sign every package as well, serve the directory
 over HTTPS, retain old versions, and use a domain controlled by the project.
-The example [`tic.repo.conf.example`](tic.repo.conf.example) Pacman stanza
+The example [`arca.repo.conf.example`](arca.repo.conf.example) Pacman stanza
 deliberately has no server until that infrastructure exists. The source
-repository is named **Tic**; `tac` is the command users run.
+repository and package command are both named **Arca**.
+## Custom runtime packages
+
+`./repo/build-custom.sh` builds the pinned `kage-shell` package and refreshes the
+local `arca` repository database. A normal image build deliberately fails if
+the custom package is absent, preventing an unnoticed fallback to stock Fish.
+
+The package still installs `/usr/bin/fish` for compatibility and also exposes
+`/usr/bin/kage`; `/usr/bin/glyph-shell` is retained as a compatibility alias.
+The package declares `provides`, `conflicts`, and `replaces` for
+Fish, so Pacman performs one explicit replacement rather than installing two
+competing shells.

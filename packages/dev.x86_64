@@ -1,6 +1,5 @@
 # Optional development flavor
 base-devel
-python
 python-pip
 python-pipx
 nodejs

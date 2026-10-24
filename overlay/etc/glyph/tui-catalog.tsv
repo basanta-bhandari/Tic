@@ -1,0 +1,101 @@
+# rank<TAB>name<TAB>category<TAB>arch-package-or--<TAB>command-or--<TAB>description
+1	NeoMutt	Communication	neomutt	neomutt	Keyboard-driven email client with threads, MIME and OpenPGP support
+2	Helix	Development	helix	hx	Modal editor with multiple selections and built-in language-server support
+3	musikcube	Media	-	musikcube	Terminal music library, player and streaming audio server
+4	lazydocker	Containers	lazydocker	lazydocker	Single-screen control center for Docker and Compose
+5	btop++	System	btop	btop	Responsive resource and process monitor with detailed graphs
+6	lazygit	Development	lazygit	lazygit	Interactive terminal interface for common Git workflows
+7	nnn	Files	nnn	nnn	Tiny, fast file manager with plugins and batch operations
+8	OpenBB	Finance	-	openbb	Investment research environment with market-analysis tools
+9	Newsboat	Communication	newsboat	newsboat	RSS and Atom feed reader with filtering and scripting
+10	Zellij	Workspace	zellij	zellij	Persistent terminal workspace with panes, tabs and layouts
+11	nb	Notes	-	nb	Notebook and bookmark manager using portable text files
+12	fx	Data	fx	fx	Interactive JSON viewer, navigator and transformer
+13	cTop	Containers	ctop	ctop	Live metrics and controls for multiple containers
+14	gping	Network	gping	gping	Ping latency visualized as a real-time graph
+15	delta	Development	git-delta	delta	Syntax-aware pager for Git diffs and command output
+16	cointop	Finance	-	cointop	Live cryptocurrency prices, charts and portfolio tracking
+17	kmon	System	kmon	kmon	Browse, search, load and unload Linux kernel modules
+18	Clonezilla	Recovery	clonezilla	clonezilla	Disk and partition imaging, cloning and recovery suite
+19	Ncdu	Files	ncdu	ncdu	Interactive disk-usage analyzer for finding large paths
+20	PyRadio	Media	-	pyradio	Internet radio browser and player
+21	slack-term	Communication	-	slack-term	Terminal client for Slack workspaces
+22	K9s	Containers	k9s	k9s	Navigate and operate Kubernetes resources interactively
+23	pspg	Data	-	pspg	Pager optimized for tabular database query results
+24	Textual	Development	python-textual	textual	Python framework and developer tools for rich terminal applications
+25	WTF	Dashboard	-	wtfutil	Personal dashboard combining services and system information
+26	so	Development	-	so	Search and browse Stack Overflow from the terminal
+27	Termshark	Network	termshark	termshark	Wireshark-style terminal interface for packet captures
+28	tmux	Workspace	tmux	tmux	Persistent terminal multiplexer with windows and panes
+29	up	Development	up	up	Interactively build and preview shell pipelines
+30	Bubble Tea	Development	-	-	Go model-view-update framework for building terminal interfaces
+31	Ventoy	Recovery	-	ventoy	Create multiboot USB media that boots ISO files directly
+32	VisiData	Data	visidata	vd	Interactive exploration and transformation of tabular data
+33	WeeChat	Communication	weechat	weechat	Extensible chat client for IRC and other protocols
+34	NVTOP	System	nvtop	nvtop	Process and utilization monitor for supported GPUs
+35	wuzz	Network	-	wuzz	Interactive HTTP request builder and response inspector
+36	mdcat	Documents	-	mdcat	Render Markdown documents with terminal-aware formatting
+37	ncmpcpp	Media	ncmpcpp	ncmpcpp	Feature-rich terminal client for Music Player Daemon
+38	lnav	System	lnav	lnav	Log-file navigator with parsing, filtering and SQL queries
+39	Slides	Documents	-	slides	Present Markdown slide decks directly in a terminal
+40	procs	System	procs	procs	Modern, searchable replacement for the ps command
+41	patat	Documents	-	patat	Pandoc-based terminal presentation application
+42	MapSCII	Network	-	mapscii	Explore OpenStreetMap using terminal characters
+43	Matterhorn	Communication	-	matterhorn	Terminal client for Mattermost team chat
+44	UnNetHack	Games	-	unethack	Roguelike dungeon game derived from NetHack
+45	Lip Gloss	Development	-	-	Go styling and layout library for terminal applications
+46	hledger	Finance	hledger	hledger	Double-entry accounting using readable plain-text journals
+47	castero	Media	-	castero	Podcast client designed for keyboard-driven terminal use
+48	gpg-tui	Security	gpg-tui	gpg-tui	Manage OpenPGP keys and inspect GnuPG operations
+49	gobang	Data	-	gobang	Cross-platform terminal database client written in Rust
+50	dive	Containers	dive	dive	Inspect container image layers and identify wasted space
+51	GoAccess	Network	goaccess	goaccess	Real-time web access-log analyzer and dashboard
+52	GitUI	Development	gitui	gitui	Fast terminal interface for staging, commits and Git history
+53	dua-cli	Files	dua-cli	dua	Parallel disk-usage inspection and interactive cleanup
+54	calcurse	Productivity	calcurse	calcurse	Calendar, appointments and task organizer
+55	feh	Media	feh	feh	Lightweight image viewer controlled from the keyboard
+56	GDB dashboard	Development	-	gdb-dashboard	Modular visual dashboard for GDB debugging sessions
+57	fontpreview	Appearance	-	fontpreview	Fuzzy-search and preview installed fonts
+58	Euporie	Documents	-	euporie-console	Terminal notebook, console and document viewer
+59	bandwhich	Network	bandwhich	bandwhich	Attribute live network bandwidth to processes and connections
+60	epr	Documents	-	epr	Terminal ebook reader with progress and library support
+61	Dockly	Containers	-	dockly	Interactive management interface for Docker containers
+62	Browsh	Network	-	browsh	Modern web pages rendered into terminal cells
+63	ali	Network	ali	ali	Generate HTTP load and display live request statistics
+64	h-m-m	System	-	h-m-m	Interactive process viewer and system monitor
+65	PathPicker	Files	-	fpp	Select paths from command output and open them in tools
+66	PuDB	Development	python-pudb	pudb	Full-screen visual debugger for Python programs
+67	viddy	Utilities	-	viddy	Modern watch command with history and visual differences
+68	Ticker	Finance	-	ticker	Live stock, currency and commodity quote dashboard
+69	gomuks	Communication	gomuks	gomuks	Terminal Matrix client with rooms, replies and media metadata
+70	Redo	Development	-	redo	Simple build system based on executable dependency scripts
+71	YouPlot	Data	-	youplot	Create plots from delimited data directly in the terminal
+72	GNU Chess	Games	gnuchess	gnuchess	Chess engine playable directly or through other front ends
+73	tickrs	Finance	tickrs	tickrs	Real-time stock ticker with charts and watchlists
+74	Profanity	Communication	profanity	profanity	Console XMPP client with encryption and scripting support
+75	wego	Network	-	wego	Weather forecasts and conditions displayed as text
+76	Toot	Communication	toot	toot	Command-line and terminal client for Mastodon
+77	PTerm	Development	-	-	Python library for terminal text, charts and interactive widgets
+78	termdbms	Data	-	termdbms	Terminal interface for browsing and querying databases
+79	Spotify TUI	Media	-	spt	Keyboard-driven Spotify client using the Spotify API
+80	w3m	Network	w3m	w3m	Text web browser and pager with table support
+81	tg	Communication	-	tg	Terminal client for Telegram conversations
+82	pulsemixer	Media	pulsemixer	pulsemixer	Interactive mixer for PulseAudio and PipeWire compatibility
+83	hwatch	Utilities	-	hwatch	Watch command output with history and difference highlighting
+84	IPTraf-ng	Network	iptraf-ng	iptraf-ng	Real-time IP traffic and interface statistics monitor
+85	Termtyper	Games	-	termtyper	Typing practice and speed tests inside the terminal
+86	hackernews-TUI	Communication	-	hackernews-tui	Browse Hacker News stories and comments
+87	ugrep	Utilities	ugrep	ugrep	Fast recursive search with an interactive query interface
+88	GEF	Development	gef	gef	Enhanced GDB environment for exploit development and debugging
+89	NoteSH	Notes	-	notesh	Terminal note taking and organization tool
+90	clipmenu	Utilities	clipmenu	clipmenu	Clipboard history chooser designed for lightweight desktops
+91	httm	Files	-	httm	Find and restore previous file versions and snapshots
+92	DHEX	Development	dhex	dhex	Ncurses hexadecimal editor with binary comparison
+93	neoss	Network	-	neoss	Inspect network sockets with a terminal interface
+94	twitch-tui	Communication	twitch-tui	twitch-tui	Read and participate in Twitch chat from a terminal
+95	kabmat	Productivity	-	kabmat	Simple terminal Kanban board for personal tasks
+96	reader	Documents	-	reader	Distraction-free terminal reader for web articles
+97	Devzat	Communication	-	devzat	SSH-accessible chat service for developers
+98	ugm	System	-	ugm	Terminal interface for managing users and groups
+99	systeroid	System	systeroid	systeroid	Browse, search and modify Linux sysctl parameters
+100	Nomad Network	Network	-	nomad-network	Terminal network discovery and monitoring application

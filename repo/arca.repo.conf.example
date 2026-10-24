@@ -1,0 +1,4 @@
+# Add this block to /etc/pacman.conf only after publishing the repository.
+[arca]
+SigLevel = Required DatabaseOptional
+# Server = https://repo.example.org/arca/$arch

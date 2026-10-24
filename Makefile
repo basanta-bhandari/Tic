@@ -1,28 +1,29 @@
 SHELL := /bin/bash
 FLAVOR ?= full
-ARCHISO_PROFILE ?= /usr/share/archiso/configs/releng
+ARCHISO_PROFILE ?=
+TEST_WORK_DIR ?= $(CURDIR)/work-test-profile
+PROFILE_ARG = $(if $(strip $(ARCHISO_PROFILE)),--archiso-profile "$(ARCHISO_PROFILE)",)
 
-.PHONY: check test-profile profile iso run clean
+.PHONY: check custom-packages test-profile profile iso run clean
 
 check:
 	./scripts/check.sh
 
+custom-packages:
+	./repo/build-custom.sh
+
 test-profile:
-	./build.sh --profile-only --flavor "$(FLAVOR)" --archiso-profile tests/fixtures/releng
-	./scripts/check-profile.sh work/profile "$(FLAVOR)"
+	WORK_DIR="$(TEST_WORK_DIR)" ./build.sh --profile-only --flavor "$(FLAVOR)" --archiso-profile tests/fixtures/releng
+	./scripts/check-profile.sh "$(TEST_WORK_DIR)/profile" "$(FLAVOR)"
 
 profile:
-	./build.sh --profile-only --flavor "$(FLAVOR)" --archiso-profile "$(ARCHISO_PROFILE)"
+	./build.sh --profile-only --flavor "$(FLAVOR)" $(PROFILE_ARG)
 
 iso:
-	./build.sh --flavor "$(FLAVOR)" --archiso-profile "$(ARCHISO_PROFILE)"
+	./build.sh --flavor "$(FLAVOR)" $(PROFILE_ARG)
 
 run:
-	@iso="$$(find out -maxdepth 1 -type f -name 'glyph-linux-*.iso' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)"; \
-	if [[ -z "$$iso" ]]; then echo "No Glyph ISO found in out/. Run 'make iso' first." >&2; exit 1; fi; \
-	if command -v run_archiso >/dev/null 2>&1; then run_archiso -i "$$iso"; \
-	elif command -v qemu-system-x86_64 >/dev/null 2>&1; then qemu-system-x86_64 -enable-kvm -m 2048 -smp 2 -cdrom "$$iso"; \
-	else echo "Install archiso or qemu-desktop to run the image." >&2; exit 1; fi
+	./run.sh
 
 clean:
 	./scripts/clean.sh

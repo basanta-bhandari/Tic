@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Imperium's current Kitty/Sway adapter. This becomes the native compositor.
+exec /usr/local/bin/glyph-mux "$@"

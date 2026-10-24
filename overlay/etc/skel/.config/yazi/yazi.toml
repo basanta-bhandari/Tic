@@ -12,4 +12,4 @@ max_height = 1800
 
 [opener]
 edit = [{ run = '${EDITOR:-nvim} "$@"', block = true, desc = "Edit" }]
-open = [{ run = 'glyph-open "$1"', block = true, desc = "Open in Glyph" }]
+open = [{ run = 'glyph-open "$1"', block = true, desc = "Open in Zenith" }]

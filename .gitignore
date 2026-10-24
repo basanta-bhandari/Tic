@@ -1,8 +1,13 @@
 /.local-tools/
 /work/
+/work-*/
 /out/
 /out-fixed/
+/out-*/
 /repo/out/
+/repo/glyph-shell/fish/
+/repo/glyph-shell/src/
+/repo/glyph-shell/pkg/
 *.iso
 *.pkg.tar.*
 *.sig

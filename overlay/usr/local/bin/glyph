@@ -1,184 +1,524 @@
-#!/usr/bin/env bash
-set -uo pipefail
+#!/usr/bin/env python3
+"""Zenith Home: a responsive, dependency-free terminal workspace."""
 
-readonly APP_DB="${GLYPH_APP_DB:-/etc/glyph/apps.tsv}"
-readonly HELP_FILE="${GLYPH_HELP_FILE:-/etc/glyph/help.txt}"
+from __future__ import annotations
 
-ui_library="${GLYPH_UI_LIBRARY:-/usr/local/lib/glyph/ui.sh}"
-if [[ -r "$ui_library" ]]; then
-    # shellcheck source=/usr/local/lib/glyph/ui.sh
-    source "$ui_library"
-else
-    printf 'Glyph UI library is missing.\n' >&2
-    exit 1
-fi
+import argparse
+import curses
+import csv
+import datetime as dt
+import getpass
+import os
+from pathlib import Path
+import shutil
+import socket
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
 
-usage() {
-    cat <<'EOF'
-Usage: glyph [--help] [--list-apps]
 
-Open the Glyph Linux text workspace.
-EOF
-}
+APP_DB = Path(os.environ.get("GLYPH_APP_DB", "/etc/glyph/apps.tsv"))
+TABS = ("HOME", "WORK", "ORGANIZE", "COMMUNICATE", "MEDIA", "SYSTEM")
+QUICK_TAGS = (
+    "file-manager-2", "editor-1", "data-viewer-1", "calendar-1",
+    "web-browser-1", "music-player-1", "image-viewer-1",
+    "system-monitor-1", "tui-store",
+)
 
-case "${1:-}" in
-    -h|--help) usage; exit 0 ;;
-    --list-apps) awk -F '\t' '!/^#/ {printf "%-12s %-14s %s\n", $1, $2, $3}' "$APP_DB"; exit 0 ;;
-    "") ;;
-    *) usage >&2; exit 2 ;;
-esac
 
-glyph_require dialog || exit 1
-[[ -r "$APP_DB" ]] || { printf 'Missing application catalog: %s\n' "$APP_DB" >&2; exit 1; }
-trap glyph_cleanup_terminal EXIT HUP INT TERM
+def set_cursor(visibility: int) -> None:
+    """Request a cursor mode without failing on limited/recovery terminals."""
+    try:
+        curses.curs_set(visibility)
+    except curses.error:
+        pass
 
-status_line() {
-    local net="offline"
-    local battery=""
-    local load=""
-    if command -v nmcli >/dev/null 2>&1; then
-        net="$(nmcli -t -f STATE general 2>/dev/null | head -1)"
-        [[ -n "$net" ]] || net="offline"
-    fi
-    if compgen -G '/sys/class/power_supply/BAT*/capacity' >/dev/null; then
-        local capacity
-        capacity="$(head -1 /sys/class/power_supply/BAT*/capacity 2>/dev/null || true)"
-        [[ -n "$capacity" ]] && battery="  BAT ${capacity}%"
-    fi
-    read -r load _ </proc/loadavg 2>/dev/null || load="?"
-    printf '%s  NET %s%s  LOAD %s  %(%H:%M)T' "$(hostname)" "$net" "$battery" "$load" -1
-}
 
-launch_command() {
-    local label="$1"
-    local command="$2"
-    local required="${3:-}"
-    [[ -z "$required" ]] || glyph_require "$required" || return
-    clear
-    printf '\033[1;33mGLYPH // %s\033[0m\n\n' "$label"
-    GLYPH_NO_LAUNCH=1 bash -lc "$command"
-    local status=$?
-    if ((status != 0)); then
-        printf '\n\033[1;31mApplication exited with status %d.\033[0m\n' "$status" >&2
-    fi
-    glyph_pause
-}
+@dataclass(frozen=True)
+class App:
+    category: str
+    tag: str
+    label: str
+    command: str
+    required: str
 
-app_menu() {
-    local category="$1"
-    local title="$2"
-    local -a menu=()
-    local row_category tag label command required
-    declare -A commands=()
-    declare -A labels=()
-    declare -A requirements=()
+    @property
+    def available(self) -> bool:
+        return bool(shutil.which(self.required))
 
-    while IFS=$'\t' read -r row_category tag label command required; do
-        [[ "$row_category" == "$category" ]] || continue
-        command -v "$required" >/dev/null 2>&1 || continue
-        menu+=("$tag" "$label")
-        commands["$tag"]="$command"
-        labels["$tag"]="$label"
-        requirements["$tag"]="$required"
-    done < <(grep -v '^[[:space:]]*#' "$APP_DB")
 
-    if ((${#menu[@]} == 0)); then
-        glyph_message "$title" "No applications are registered in this category."
-        return
-    fi
+def load_apps(path: Path) -> list[App]:
+    apps: list[App] = []
+    try:
+        with path.open(encoding="utf-8") as source:
+            for row in csv.reader(source, delimiter="\t"):
+                if not row or row[0].lstrip().startswith("#") or len(row) < 5:
+                    continue
+                apps.append(App(*row[:5]))
+    except OSError as error:
+        raise SystemExit(f"glyph: cannot read application catalog: {error}") from error
+    return apps
 
-    while true; do
-        local choice
-        choice="$(glyph_dialog --title "$title" --cancel-label "Back" \
-            --menu "Select an application" 20 76 12 "${menu[@]}")" || return
-        launch_command "${labels[$choice]}" "${commands[$choice]}" "${requirements[$choice]}"
-    done
-}
 
-search_apps() {
-    glyph_require fzf || return
-    local selected command label required palette
-    clear
-    palette="$(mktemp -t glyph-apps.XXXXXX)"
-    while IFS=$'\t' read -r category tag row_label row_command row_required; do
-        command -v "$row_required" >/dev/null 2>&1 || continue
-        printf '%s\t%s\t%s\t%s\t%s\n' "$category" "$tag" "$row_label" "$row_command" "$row_required"
-    done < <(grep -v '^[[:space:]]*#' "$APP_DB") >"$palette"
-    if ! selected="$(fzf --delimiter=$'\t' --with-nth=1,3 \
-        --prompt='Glyph app> ' --header='CATEGORY  APPLICATION' <"$palette")"; then
-        rm -f -- "$palette"
-        return
-    fi
-    IFS=$'\t' read -r _ _ label command required <<<"$selected"
-    rm -f -- "$palette"
-    [[ -n "$command" ]] && launch_command "$label" "$command" "$required"
-}
+class Surface:
+    def __init__(self, height: int, width: int) -> None:
+        self.height = max(1, height)
+        self.width = max(1, width)
+        self.chars = [[" "] * self.width for _ in range(self.height)]
+        self.styles = [["default"] * self.width for _ in range(self.height)]
 
-command_palette() {
-    local command
-    command="$(glyph_dialog --title "Run command" --inputbox \
-        "Enter a Fish command. It will run visibly and return here." 10 72)" || return
-    [[ -n "$command" ]] || return
-    clear
-    GLYPH_NO_LAUNCH=1 fish -lc "$command"
-    glyph_pause
-}
+    def put(self, y: int, x: int, text: object, style: str = "default", limit: int | None = None) -> None:
+        if y < 0 or y >= self.height or x >= self.width:
+            return
+        value = str(text).replace("\t", "  ").replace("\n", " ")
+        if limit is not None:
+            value = value[: max(0, limit)]
+        for offset, char in enumerate(value):
+            column = x + offset
+            if 0 <= column < self.width:
+                self.chars[y][column] = char
+                self.styles[y][column] = style
 
-power_menu() {
-    local action
-    action="$(glyph_dialog --title "Power" --cancel-label "Back" --menu \
-        "Choose a session or power action" 15 68 7 \
-        lock "Lock this console" \
-        logout "Exit to the shell" \
-        reboot "Restart the computer" \
-        poweroff "Turn off the computer")" || return 1
-    case "$action" in
-        lock)
-            if command -v vlock >/dev/null 2>&1; then
-                glyph_run vlock
-            else
-                glyph_message "Lock" "vlock is not installed. Switch to another TTY or log out."
-            fi
-            ;;
-        logout) return 2 ;;
-        reboot|poweroff)
-            glyph_confirm "Confirm $action" "Really $action now?" && glyph_as_root systemctl "$action"
-            ;;
-    esac
-}
+    def hline(self, y: int, x: int, width: int, char: str = "─", style: str = "dim") -> None:
+        self.put(y, x, char * max(0, width), style)
 
-while true; do
-    choice="$(glyph_dialog --title "$(status_line)" --cancel-label "Exit" --menu \
-        "Select a workspace  •  / searches apps  •  Esc exits" 22 78 13 \
-        work "WORK          Files, editor, documents, data, and Git" \
-        organize "ORGANIZE      Calendar, tasks, and passwords" \
-        communicate "COMMUNICATE   Web, mail, feeds, chat, and remote hosts" \
-        media "MEDIA         Music, images, video, and audio" \
-        system "SYSTEM        Monitor, devices, software, and settings" \
-        search "SEARCH        Search every installed Glyph application" \
-        command "COMMAND       Run an arbitrary Fish command" \
-        terminal "TERMINAL      Open a full Fish login shell" \
-        help "HELP          Shortcuts and survival guide" \
-        install "INSTALL       Install Glyph Linux to a disk" \
-        power "POWER         Lock, log out, restart, or turn off")" || break
+    def box(self, y: int, x: int, height: int, width: int, title: str, accent: str = "cyan") -> None:
+        if height < 3 or width < 4:
+            return
+        right = min(self.width - 1, x + width - 1)
+        bottom = min(self.height - 1, y + height - 1)
+        if right <= x or bottom <= y:
+            return
+        self.put(y, x, "╭", accent)
+        self.hline(y, x + 1, right - x - 1)
+        self.put(y, right, "╮", "dim")
+        self.put(bottom, x, "╰", "dim")
+        self.hline(bottom, x + 1, right - x - 1)
+        self.put(bottom, right, "╯", "dim")
+        for row in range(y + 1, bottom):
+            self.put(row, x, "│", "dim")
+            self.put(row, right, "│", "dim")
+        self.put(y, x + 2, f" {title} "[: max(0, width - 4)], accent)
 
-    case "$choice" in
-        work) app_menu WORK "Work" ;;
-        organize) app_menu ORGANIZE "Organize" ;;
-        communicate) app_menu COMMUNICATE "Communicate" ;;
-        media) app_menu MEDIA "Media" ;;
-        system) app_menu SYSTEM "System" ;;
-        search) search_apps ;;
-        command) command_palette ;;
-        terminal)
-            clear
-            GLYPH_NO_LAUNCH=1 fish --login
-            ;;
-        help) glyph_dialog --title "Glyph Help" --textbox "$HELP_FILE" 24 82 ;;
-        install) glyph_run glyph-install ;;
-        power)
-            power_menu
-            [[ $? -eq 2 ]] && break
-            ;;
-    esac
-done
+    def bar(self, y: int, x: int, width: int, value: float, style: str = "cyan") -> None:
+        width = max(0, width)
+        fill = round(width * max(0.0, min(100.0, value)) / 100.0)
+        self.put(y, x, "━" * fill, style)
+        self.put(y, x + fill, "─" * (width - fill), "dim")
+
+    def plain(self) -> str:
+        return "\n".join("".join(row).rstrip() for row in self.chars)
+
+
+class Metrics:
+    def __init__(self) -> None:
+        self.cpu = 0.0
+        self.previous_cpu: tuple[int, int] | None = None
+        self.refresh()
+
+    @staticmethod
+    def read(path: Path) -> str:
+        try:
+            return path.read_text(encoding="utf-8", errors="replace").strip()
+        except OSError:
+            return ""
+
+    def refresh(self) -> None:
+        fields = self.read(Path("/proc/stat")).splitlines()
+        if fields and fields[0].startswith("cpu "):
+            values = [int(value) for value in fields[0].split()[1:]]
+            total, idle = sum(values), sum(values[3:5])
+            if self.previous_cpu:
+                old_total, old_idle = self.previous_cpu
+                elapsed = max(1, total - old_total)
+                self.cpu = 100.0 * (elapsed - (idle - old_idle)) / elapsed
+            self.previous_cpu = (total, idle)
+
+        meminfo: dict[str, int] = {}
+        for line in self.read(Path("/proc/meminfo")).splitlines():
+            parts = line.replace(":", "").split()
+            if len(parts) >= 2 and parts[1].isdigit():
+                meminfo[parts[0]] = int(parts[1])
+        total_mem = meminfo.get("MemTotal", 0)
+        available = meminfo.get("MemAvailable", total_mem)
+        self.memory = 100.0 * (total_mem - available) / total_mem if total_mem else 0.0
+        self.memory_text = f"{(total_mem - available) / 1048576:.1f}/{total_mem / 1048576:.1f} GiB" if total_mem else "unknown"
+
+        try:
+            disk = shutil.disk_usage("/")
+            self.disk = 100.0 * disk.used / disk.total
+            self.disk_text = f"{disk.used / 2**30:.0f}/{disk.total / 2**30:.0f} GiB"
+        except OSError:
+            self.disk, self.disk_text = 0.0, "unknown"
+        try:
+            self.uptime = float(self.read(Path("/proc/uptime")).split()[0])
+        except (ValueError, IndexError):
+            self.uptime = 0.0
+
+        interfaces: list[str] = []
+        for interface in sorted(Path("/sys/class/net").glob("*")):
+            if interface.name != "lo" and self.read(interface / "operstate") in {"up", "unknown"}:
+                interfaces.append(interface.name)
+        self.network = ", ".join(interfaces) if interfaces else "offline"
+
+        controllers = list(Path("/sys/class/bluetooth").glob("hci*"))
+        self.bluetooth = f"{len(controllers)} controller" if controllers else "no controller"
+        runtime = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
+        self.audio = "PipeWire active" if (runtime / "pipewire-0").exists() else (
+            "ALSA available" if Path("/proc/asound/cards").exists() else "no device"
+        )
+        capacities: list[int] = []
+        for battery in Path("/sys/class/power_supply").glob("BAT*/capacity"):
+            try:
+                capacities.append(int(self.read(battery)))
+            except ValueError:
+                pass
+        self.battery = f"{sum(capacities) // len(capacities)}%" if capacities else "AC / desktop"
+
+
+class ZenithHome:
+    def __init__(self, apps: list[App]) -> None:
+        self.apps = apps
+        self.tab = 0
+        self.selected = 0
+        self.query = ""
+        self.message = ""
+        self.metrics = Metrics()
+        self.last_refresh = 0.0
+
+    def visible_apps(self) -> list[App]:
+        if self.query:
+            needle = self.query.casefold()
+            return [app for app in self.apps if needle in f"{app.category} {app.tag} {app.label}".casefold()]
+        if TABS[self.tab] == "HOME":
+            by_tag = {app.tag: app for app in self.apps}
+            return [by_tag[tag] for tag in QUICK_TAGS if tag in by_tag]
+        return [app for app in self.apps if app.category == TABS[self.tab]]
+
+    def refresh(self, force: bool = False) -> None:
+        now = time.monotonic()
+        if force or now - self.last_refresh >= 1.0:
+            self.metrics.refresh()
+            self.last_refresh = now
+
+    @staticmethod
+    def uptime_label(seconds: float) -> str:
+        minutes = int(seconds // 60)
+        days, minutes = divmod(minutes, 1440)
+        hours, minutes = divmod(minutes, 60)
+        return f"{days}d {hours}h {minutes}m" if days else f"{hours}h {minutes}m"
+
+    def header(self, surface: Surface) -> None:
+        now = dt.datetime.now().astimezone()
+        surface.put(0, 1, "ZENITH", "cyan")
+        surface.put(0, 8, "workspace", "dim")
+        clock = f"{socket.gethostname()}  {now:%a %d %b  %H:%M}"
+        clock_x = max(17, surface.width - len(clock) - 2)
+        if surface.width >= 96:
+            x = 19
+            for index, tab in enumerate(TABS):
+                label = f" {tab.title()} "
+                style = "selected" if index == self.tab and not self.query else "default"
+                if x + len(label) < clock_x - 1:
+                    surface.put(0, x, label, style)
+                x += len(label) + 1
+        elif surface.width >= 48:
+            surface.put(0, 19, f" {TABS[self.tab].title()} ", "selected")
+        surface.put(0, clock_x, clock, "dim", max(0, surface.width - clock_x))
+        surface.hline(1, 0, surface.width)
+
+    def footer(self, surface: Surface) -> None:
+        y = surface.height - 1
+        surface.hline(y - 1, 0, surface.width)
+        keys = (" ↑↓ select   ←→ tab   enter open   / search   : command   ? help   q quit "
+                if surface.width >= 100 else " ↑↓ select  ←→ tabs  enter open  / find  q quit ")
+        surface.put(y, 0, keys, "dim", surface.width)
+        status = self.message or (f"filter: {self.query}" if self.query else f"{sum(app.available for app in self.apps)}/{len(self.apps)} apps ready")
+        status_x = surface.width - len(status) - 1
+        if status_x > len(keys) + 1:
+            surface.put(y, status_x, status, "yellow", len(status))
+
+    def home(self, surface: Surface) -> None:
+        top, bottom = 3, surface.height - 3
+        available_height = bottom - top
+        if surface.width < 76 or available_height < 17:
+            surface.box(top, 1, max(5, available_height), surface.width - 2, "ZENITH HOME", "magenta")
+            surface.put(top + 2, 4, "This surface needs at least 76 x 20 cells.", "yellow", surface.width - 8)
+            surface.put(top + 4, 4, f"Current size: {surface.width} x {surface.height}", "dim")
+            return
+
+        left_width = max(31, min(40, surface.width // 3))
+        right_x = left_width + 2
+        right_width = surface.width - right_x - 1
+        now_height = min(9, max(7, available_height // 3))
+        connections_height = min(11, max(9, available_height // 2))
+
+        surface.box(top, 1, now_height, left_width, "NOW", "cyan")
+        now = dt.datetime.now().astimezone()
+        surface.put(top + 2, 4, f"{now:%A}", "cyan")
+        surface.put(top + 3, 4, f"{now:%d %B %Y}")
+        surface.put(top + 4, 4, f"{now:%H:%M:%S}  {now:%Z}", "magenta")
+        surface.put(top + 6, 4, f"{getpass.getuser()}  ·  up {self.uptime_label(self.metrics.uptime)}", "dim", left_width - 7)
+
+        system_y = top + now_height
+        system_height = bottom - system_y + 1
+        surface.box(system_y, 1, system_height, left_width, "RESOURCES", "yellow")
+        rows = (
+            ("CPU", self.metrics.cpu, f"{self.metrics.cpu:4.1f}%", "cyan"),
+            ("MEM", self.metrics.memory, self.metrics.memory_text, "magenta"),
+            ("DISK", self.metrics.disk, self.metrics.disk_text, "yellow"),
+        )
+        row_y, bar_width = system_y + 2, max(6, left_width - 13)
+        for label, value, text, color in rows:
+            if row_y >= system_y + system_height - 2:
+                break
+            surface.put(row_y, 4, label, color)
+            surface.bar(row_y, 10, bar_width, value, color)
+            surface.put(row_y + 1, 10, text, "dim", bar_width)
+            row_y += 3
+        if row_y < system_y + system_height - 1:
+            surface.put(row_y, 4, f"POWER  {self.metrics.battery}", "green")
+
+        surface.box(top, right_x, connections_height, right_width, "CONNECTIONS", "magenta")
+        surface.put(top + 2, right_x + 3, "SERVICE", "dim")
+        surface.put(top + 2, right_x + 18, "STATE", "dim")
+        surface.put(top + 2, right_x + 32, "DETAIL", "dim")
+        connection_rows = (
+            ("Network", "online" if self.metrics.network != "offline" else "offline", self.metrics.network),
+            ("Bluetooth", "ready" if self.metrics.bluetooth != "no controller" else "absent", self.metrics.bluetooth),
+            ("Audio", "ready" if self.metrics.audio != "no device" else "absent", self.metrics.audio),
+            ("Session", os.environ.get("XDG_SESSION_TYPE", "tty"), os.environ.get("XDG_CURRENT_DESKTOP", "Imperium")),
+        )
+        for offset, (name, state, detail) in enumerate(connection_rows, 4):
+            color = "green" if state in {"online", "ready", "wayland"} else "yellow"
+            surface.put(top + offset, right_x + 3, name, "default", 13)
+            surface.put(top + offset, right_x + 18, state, color, 11)
+            surface.put(top + offset, right_x + 32, detail, "dim", right_width - 35)
+
+        quick_y = top + connections_height
+        quick_height = bottom - quick_y + 1
+        surface.box(quick_y, right_x, quick_height, right_width, "QUICK LAUNCH", "cyan")
+        apps = self.visible_apps()
+        list_rows = max(0, quick_height - 3)
+        self.selected = min(self.selected, max(0, len(apps) - 1))
+        start = max(0, min(self.selected - list_rows + 1, len(apps) - list_rows))
+        for index, app in enumerate(apps[start : start + list_rows], start):
+            y = quick_y + 2 + index - start
+            chosen = index == self.selected
+            style = "selected" if chosen else ("green" if app.available else "dim")
+            surface.put(y, right_x + 3, "›" if chosen else " ", style)
+            surface.put(y, right_x + 5, "●" if app.available else "○", style)
+            surface.put(y, right_x + 8, app.label, style, right_width - 20)
+            surface.put(y, right_x + right_width - 10, app.category.title(), "dim", 8)
+
+    def apps_view(self, surface: Surface) -> None:
+        top, bottom = 3, surface.height - 3
+        body_height = bottom - top + 1
+        sidebar = 24 if surface.width >= 88 else 18
+        surface.box(top, 1, body_height, sidebar, "SECTIONS", "magenta")
+        for index, tab in enumerate(TABS[1:], 1):
+            count = sum(app.category == tab and app.available for app in self.apps)
+            style = "selected" if index == self.tab and not self.query else "default"
+            surface.put(top + 2 + index, 3, tab.title(), style, sidebar - 9)
+            surface.put(top + 2 + index, sidebar - 5, f"{count:2d}", "dim")
+        surface.put(bottom - 2, 3, "Search all", "cyan")
+        surface.put(bottom - 1, 3, "/", "yellow")
+
+        list_x = sidebar + 2
+        list_width = surface.width - list_x - 1
+        title = f"SEARCH · {self.query}" if self.query else TABS[self.tab]
+        surface.box(top, list_x, body_height, list_width, title, "cyan")
+        surface.put(top + 2, list_x + 5, "STATUS", "dim")
+        surface.put(top + 2, list_x + 14, "APPLICATION", "dim")
+        surface.put(top + 2, list_x + max(30, list_width - 20), "COMMAND", "dim")
+        apps = self.visible_apps()
+        rows = max(0, body_height - 5)
+        self.selected = min(self.selected, max(0, len(apps) - 1))
+        start = max(0, min(self.selected - rows + 1, len(apps) - rows))
+        for index, app in enumerate(apps[start : start + rows], start):
+            y = top + 3 + index - start
+            chosen = index == self.selected
+            style = "selected" if chosen else "default"
+            surface.put(y, list_x + 3, "›" if chosen else " ", style)
+            surface.put(y, list_x + 5, "ready" if app.available else "install", "green" if app.available else "yellow")
+            surface.put(y, list_x + 14, app.label, style, max(12, list_width - 36))
+            surface.put(y, list_x + max(30, list_width - 20), app.required, "dim", 16)
+        if not apps:
+            surface.put(top + 5, list_x + 4, "No applications match this view.", "yellow")
+
+    def draw(self, height: int, width: int) -> Surface:
+        self.refresh()
+        surface = Surface(height, width)
+        self.header(surface)
+        self.home(surface) if self.tab == 0 and not self.query else self.apps_view(surface)
+        self.footer(surface)
+        return surface
+
+    def launch(self, screen: curses.window, app: App) -> None:
+        if not app.available:
+            self.message = f"{app.required} is not installed · open Software to add it"
+            return
+        curses.def_prog_mode()
+        curses.endwin()
+        print(f"\033[1;36mZENITH / {app.label}\033[0m\n")
+        environment = os.environ.copy()
+        environment["ZENITH_NO_LAUNCH"] = "1"
+        environment["GLYPH_NO_LAUNCH"] = "1"
+        status = subprocess.call(["bash", "--noprofile", "--norc", "-c", app.command], env=environment)
+        print(f"\nApplication exited with status {status}. Press Enter to return to Zenith.")
+        try:
+            input()
+        except EOFError:
+            pass
+        curses.reset_prog_mode()
+        screen.clear()
+        self.message = ""
+        self.refresh(force=True)
+
+    def prompt(self, screen: curses.window, label: str) -> str:
+        height, width = screen.getmaxyx()
+        screen.move(height - 1, 0)
+        screen.clrtoeol()
+        screen.addnstr(height - 1, 0, label, max(1, width - 1), curses.color_pair(4) | curses.A_BOLD)
+        curses.echo()
+        set_cursor(1)
+        try:
+            value = screen.getstr(height - 1, min(len(label), width - 1), max(1, width - len(label) - 2))
+        finally:
+            curses.noecho()
+            set_cursor(0)
+        return value.decode(errors="replace").strip()
+
+    def help(self, screen: curses.window) -> None:
+        lines = [
+            "ZENITH HOME", "",
+            "Arrow keys / h j k l    move between tabs and applications",
+            "Enter                   open the selected application",
+            "/                       search every registered application",
+            ":                       run a Kage command",
+            "r                       refresh live status",
+            "q / Esc                 leave Zenith Home", "",
+            "Filled dots are installed. Hollow dots are available through Software.",
+            "The Kage shell remains available after leaving this surface.",
+        ]
+        height, width = screen.getmaxyx()
+        if height < 10 or width < 44:
+            self.message = "Help needs at least 44 columns × 10 rows"
+            return
+        box_height, box_width = min(height - 4, len(lines) + 4), min(width - 4, 78)
+        window = curses.newwin(box_height, box_width, max(1, (height - box_height) // 2), max(1, (width - box_width) // 2))
+        window.bkgd(" ", curses.color_pair(2))
+        window.attron(curses.color_pair(3))
+        window.box()
+        window.attroff(curses.color_pair(3))
+        for index, line in enumerate(lines[: box_height - 3], 1):
+            style = curses.color_pair(3) | curses.A_BOLD if index == 1 else curses.color_pair(2)
+            window.addnstr(index, 2, line, box_width - 4, style)
+        window.addnstr(box_height - 2, 2, "Press any key", box_width - 4, curses.color_pair(4))
+        window.refresh()
+        window.getch()
+
+    def run_command(self, screen: curses.window) -> None:
+        import shlex
+
+        command = self.prompt(screen, "Kage command › ")
+        if command:
+            self.launch(screen, App("WORK", "command", command, f"kage -lc {shlex.quote(command)}", "kage"))
+
+    def loop(self, screen: curses.window) -> None:
+        set_cursor(0)
+        curses.use_default_colors()
+        curses.start_color()
+        colors = (
+            (-1, -1), (curses.COLOR_WHITE, -1), (curses.COLOR_CYAN, -1),
+            (curses.COLOR_YELLOW, -1), (curses.COLOR_MAGENTA, -1),
+            (curses.COLOR_GREEN, -1), (curses.COLOR_RED, -1),
+            (curses.COLOR_BLACK, curses.COLOR_CYAN),
+        )
+        for number, (foreground, background) in enumerate(colors, 1):
+            curses.init_pair(number, foreground, background)
+        style_map = {
+            "default": curses.color_pair(2), "dim": curses.color_pair(2) | curses.A_DIM,
+            "cyan": curses.color_pair(3) | curses.A_BOLD, "yellow": curses.color_pair(4) | curses.A_BOLD,
+            "magenta": curses.color_pair(5) | curses.A_BOLD, "green": curses.color_pair(6),
+            "red": curses.color_pair(7), "selected": curses.color_pair(8) | curses.A_BOLD,
+        }
+        screen.timeout(250)
+        screen.keypad(True)
+
+        while True:
+            height, width = screen.getmaxyx()
+            surface = self.draw(height, width)
+            screen.erase()
+            for y in range(min(height, surface.height)):
+                x = 0
+                while x < min(width - 1, surface.width):
+                    style = surface.styles[y][x]
+                    end = x + 1
+                    while end < min(width - 1, surface.width) and surface.styles[y][end] == style:
+                        end += 1
+                    try:
+                        screen.addstr(y, x, "".join(surface.chars[y][x:end]), style_map[style])
+                    except curses.error:
+                        pass
+                    x = end
+            screen.refresh()
+            key = screen.getch()
+            if key == -1:
+                continue
+            self.message = ""
+            apps = self.visible_apps()
+            if key in (ord("q"), 27):
+                if self.query:
+                    self.query, self.selected = "", 0
+                else:
+                    break
+            elif key in (curses.KEY_RIGHT, ord("l"), 9):
+                self.query, self.tab, self.selected = "", (self.tab + 1) % len(TABS), 0
+            elif key in (curses.KEY_LEFT, ord("h"), curses.KEY_BTAB):
+                self.query, self.tab, self.selected = "", (self.tab - 1) % len(TABS), 0
+            elif key in (curses.KEY_DOWN, ord("j")) and apps:
+                self.selected = (self.selected + 1) % len(apps)
+            elif key in (curses.KEY_UP, ord("k")) and apps:
+                self.selected = (self.selected - 1) % len(apps)
+            elif key in (10, 13, curses.KEY_ENTER) and apps:
+                self.launch(screen, apps[self.selected])
+            elif key == ord("/"):
+                self.query, self.selected = self.prompt(screen, "Search › "), 0
+            elif key == ord(":"):
+                self.run_command(screen)
+            elif key == ord("?"):
+                self.help(screen)
+            elif key == ord("r"):
+                self.refresh(force=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--list-apps", action="store_true", help="list the registered application catalog")
+    parser.add_argument("--snapshot", metavar="WIDTHxHEIGHT", help="print a non-interactive layout snapshot")
+    parser.add_argument("--tab", choices=tuple(tab.lower() for tab in TABS), default="home", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    apps = load_apps(APP_DB)
+    if args.list_apps:
+        for app in apps:
+            print(f"{app.category:<12} {app.tag:<24} {app.label}")
+        return 0
+    home = ZenithHome(apps)
+    home.tab = tuple(tab.lower() for tab in TABS).index(args.tab)
+    if args.snapshot:
+        try:
+            width, height = (int(value) for value in args.snapshot.lower().split("x", 1))
+        except (ValueError, TypeError):
+            parser.error("--snapshot must be WIDTHxHEIGHT")
+        print(home.draw(height, width).plain())
+        return 0
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        parser.error("interactive mode requires a terminal; use --snapshot for CI")
+    curses.wrapper(home.loop)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

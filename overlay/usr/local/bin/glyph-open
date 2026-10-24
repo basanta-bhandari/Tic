@@ -6,7 +6,7 @@ usage() {
 Usage: glyph-open PATH_OR_URL
 
 Open a directory, document, image, media file, archive, or URL using a
-text-oriented Glyph application. Executables are never run automatically.
+text-oriented Zenith application. Executables are never run automatically.
 EOF
 }
 
@@ -51,15 +51,25 @@ esac
 case "$mime" in
     text/html|application/xhtml+xml) exec w3m "$target" ;;
     text/*|application/xml|application/x-shellscript) exec "$editor" "$target" ;;
-    image/*) exec chafa --format symbols --colors full -- "$target" ;;
+    image/*)
+        if [[ -n ${KITTY_WINDOW_ID:-} ]] && command -v kitty >/dev/null 2>&1; then
+            exec kitty +kitten icat --transfer-mode=stream -- "$target"
+        fi
+        exec chafa --format symbols --colors full -- "$target"
+        ;;
     audio/*) exec mpv --no-video -- "$target" ;;
-    video/*) exec mpv --vo=tct --really-quiet -- "$target" ;;
+    video/*)
+        if [[ -n ${WAYLAND_DISPLAY:-} ]] && command -v vlc >/dev/null 2>&1; then
+            exec vlc -- "$target"
+        fi
+        exec mpv --vo=tct --really-quiet -- "$target"
+        ;;
     application/pdf) exec bash -c 'pdftotext -layout "$1" - | less -R' _ "$target" ;;
     application/zip|application/x-7z-compressed|application/x-tar|application/gzip|application/x-bzip2|application/zstd)
         exec 7z l -- "$target"
         ;;
     application/vnd.openxmlformats-officedocument.*|application/vnd.oasis.opendocument.*)
-        printf 'Glyph can list this compound document but cannot render its graphical layout.\n\n'
+        printf 'Zenith can list this compound document but cannot render its graphical layout.\n\n'
         exec 7z l -- "$target"
         ;;
 esac

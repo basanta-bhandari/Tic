@@ -1,4 +1,0 @@
-# Add a verified Server line before enabling this repository.
-[tic]
-SigLevel = Required DatabaseOptional
-# Server = https://repo.example.org/tic/$arch

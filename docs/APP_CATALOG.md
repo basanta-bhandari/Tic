@@ -1,8 +1,8 @@
 # Application catalog
 
-| Everyday role | Glyph default | Direct command |
+| Everyday role | Zenith default | Direct command |
 |---|---|---|
-| Workspace / start menu | Glyph launcher | `glyph` |
+| Workspace / start menu | Zenith launcher | `glyph` |
 | File manager | Yazi | `yazi` |
 | Text and code editor | Neovim | `nvim` |
 | Simple editor / recovery | Nano | `nano` |
@@ -29,9 +29,9 @@
 | Printing | CUPS CLI | `lp`, `lpstat`, `lpadmin` |
 | Scanning | SANE | `scanimage` |
 | Git | LazyGit | `lazygit` |
-| Packages | TAC over Pacman | `tac` / `pacman` |
-| Settings | Glyph Control | `glyph-control` |
-| Diagnostics | Glyph Doctor | `glyph-doctor` |
+| Packages | Arca over Pacman | `arca` / `pacman` |
+| Settings | Zenith Control | `glyph-control` |
+| Diagnostics | Zenith Doctor | `glyph-doctor` |
 | Multiplexing | tmux | `tmux` |
 | Backups / sync | Restic and rclone | `restic` / `rclone` |
 | Torrents | Transmission CLI | `transmission-cli` |
@@ -40,11 +40,11 @@
 
 ## Stable capability commands
 
-Glyph also exposes role-based names whose providers may change without breaking
+Zenith also exposes role-based names whose providers may change without breaking
 habits or scripts. Examples include `file-manager-1` → `nnn`,
 `file-manager-2` → `yazi`, `editor-1` → `nvim`, `editor-2` → `hx`, and
-`package-manager-1` → `tac`. The complete authoritative mapping is
-`/etc/glyph/capabilities.tsv`; browse it with `tac list`.
+`package-manager-1` → `arca`. The complete authoritative mapping is
+`/etc/glyph/capabilities.tsv`; browse it with `arca list`.
 
 ## Deliberate limitations
 
@@ -52,4 +52,4 @@ Text cells cannot provide a standards-complete modern web browser, pixel-perfect
 office suite, color-managed image editor, or efficient video interface. W3M,
 VisiData, Chafa, and mpv's terminal output cover useful subsets; users needing
 the full graphical equivalents can install a Wayland stack without replacing
-the Glyph environment.
+the Zenith environment.

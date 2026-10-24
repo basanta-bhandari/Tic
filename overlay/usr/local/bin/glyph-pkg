@@ -10,19 +10,19 @@ readonly CAP_DB="${GLYPH_CAP_DB:-/etc/glyph/capabilities.tsv}"
 usage() {
     cat <<'EOF'
 Usage:
-  tac                               Open the interactive package manager
-  tac list [ROLE]                   List stable Glyph capability names
-  tac resolve NAME...               Resolve capabilities to Arch packages
-  tac install NAME...               Install capabilities or Arch packages
-  tac remove NAME...                Remove their provider packages
-  tac info NAME...                  Show provider package information
-  tac search TERM                   Search the capability catalog
-  tac update                        Upgrade the complete Arch system
+  arca                              Open the interactive package manager
+  arca list [ROLE]                  List stable Zenith capability names
+  arca resolve NAME...              Resolve capabilities to Arch packages
+  arca install NAME...              Install capabilities or Arch packages
+  arca remove NAME...               Remove their provider packages
+  arca info NAME...                 Show provider package information
+  arca search TERM                  Search the capability catalog
+  arca store                        Browse the curated 100-app TUI catalog
+  arca update                       Upgrade the complete Arch system
 
-Names such as file-manager-1 and editor-2 are stable Glyph capabilities.
+Names such as file-manager-1 and editor-2 are stable Zenith capabilities.
 Pacman remains the transaction engine and is available directly for scripting.
-Glyph-pkg is retained as a compatibility command. The Coreutils reverse-cat
-utility remains available explicitly as /usr/bin/tac.
+glyph-pkg is retained as a compatibility command.
 EOF
 }
 
@@ -84,6 +84,7 @@ run_cli() {
             esac
             ;;
         update) glyph_as_root pacman -Syu ;;
+        store) glyph-store ;;
         *) usage >&2; return 2 ;;
     esac
 }
@@ -120,7 +121,7 @@ browse_capabilities() {
     local selected
     clear
     selected="$(awk -F '\t' '$0 !~ /^#/ {print}' "$CAP_DB" | \
-        fzf --multi --delimiter=$'\t' --with-nth=1,2,5 --prompt='Glyph capability> ')" || return
+        fzf --multi --delimiter=$'\t' --with-nth=1,2,5 --prompt='Zenith capability> ')" || return
     [[ -n "$selected" ]] || return
     mapfile -t package_input < <(awk -F '\t' '{print $1}' <<<"$selected")
     resolve_packages "${package_input[@]}"
@@ -160,10 +161,11 @@ glyph_require dialog || exit 1
 trap glyph_cleanup_terminal EXIT HUP INT TERM
 
 while true; do
-    choice="$(glyph_dialog --title "TAC // TUI + PACMAN" --cancel-label "Back" --menu \
-        "Use stable capabilities or ordinary Arch package names" 21 78 12 \
+    choice="$(glyph_dialog --title "ARCA // PACKAGE CHEST" --cancel-label "Back" --menu \
+        "Curated TUI software and ordinary Arch packages" 22 82 13 \
         update "Synchronize repositories and upgrade the system" \
-        catalog "Browse Glyph TUI capabilities" \
+        tui100 "Browse the 100-app TUI store (multi-select)" \
+        catalog "Browse stable Zenith capability names" \
         list "List the complete capability map" \
         browse "Browse all Arch repository packages" \
         search "Search package names and descriptions" \
@@ -180,6 +182,7 @@ while true; do
             glyph_confirm "Full upgrade" "Run pacman -Syu now? Partial upgrades are intentionally not offered." && \
                 glyph_run glyph_as_root pacman -Syu
             ;;
+        tui100) glyph_run glyph-store ;;
         catalog) browse_capabilities ;;
         list)
             clear

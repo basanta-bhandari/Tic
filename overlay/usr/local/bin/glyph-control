@@ -10,7 +10,7 @@ usage() {
     cat <<'EOF'
 Usage: glyph-control
 
-Open Glyph Linux system settings and administrative tools.
+Open Zenith OS system settings and administrative tools.
 EOF
 }
 
@@ -88,11 +88,11 @@ manage_user() {
     action="$(glyph_dialog --title "User: $user" --cancel-label "Back" --menu \
         "Account action" 14 64 5 \
         password "Change password" \
-        fish "Set Fish as login shell" \
+        kage "Set Kage as login shell" \
         groups "Show group memberships")" || return
     case "$action" in
         password) glyph_run glyph_as_root passwd "$user" ;;
-        fish) glyph_run glyph_as_root usermod -s /usr/bin/fish "$user" ;;
+        kage) glyph_run glyph_as_root usermod -s /usr/bin/kage "$user" ;;
         groups) glyph_run id "$user" ;;
     esac
 }
@@ -158,7 +158,7 @@ manage_power() {
 
 show_about() {
     local text
-    text="$(cat /etc/glyph-release 2>/dev/null || printf 'Glyph Linux')
+    text="$(cat /etc/glyph-release 2>/dev/null || printf 'Zenith OS')
 
 Kernel: $(uname -srmo)
 Host: $(hostname)
@@ -167,8 +167,8 @@ Terminal: ${TERM:-unknown}
 Packages: $(pacman -Qq 2>/dev/null | wc -l)
 Boot: $(systemd-analyze 2>/dev/null || printf 'unavailable')
 
-Glyph is an unofficial, Arch-based, text-first workstation."
-    glyph_message "About Glyph" "$text"
+Zenith is an unofficial, Arch-based, text-first workstation."
+    glyph_message "About Zenith" "$text"
 }
 
 while true; do
@@ -187,7 +187,7 @@ while true; do
         firewall "Host firewall" \
         logs "Warnings from this boot" \
         doctor "System health report" \
-        about "System and Glyph information")" || break
+        about "System and Zenith information")" || break
 
     case "$choice" in
         network) glyph_run glyph_as_root nmtui ;;

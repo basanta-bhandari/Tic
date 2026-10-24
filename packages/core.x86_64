@@ -1,6 +1,7 @@
 # Shell and text desktop
 base
-fish
+kage-shell
+python
 dialog
 terminus-font
 gpm

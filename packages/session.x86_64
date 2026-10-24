@@ -1,0 +1,15 @@
+# Zenith's minimal Imperium terminal session. Included in every flavor.
+kitty
+sway
+swaybg
+xorg-xwayland
+wl-clipboard
+grim
+slurp
+playerctl
+mako
+xdg-desktop-portal-wlr
+noto-fonts
+noto-fonts-emoji
+ttf-jetbrains-mono-nerd
+imagemagick

@@ -9,6 +9,7 @@ WORK	markdown-viewer-1	Markdown reader — Glow	glow -p /usr/local/share/glyph/d
 WORK	presentation-1	Terminal presentations — Presenterm	presenterm --help | less -R	presenterm
 WORK	git-client-1	Git workspace — LazyGit	lazygit	lazygit
 WORK	git-client-2	Git workspace — GitUI	gitui	gitui
+WORK	glyph-workspace	Imperium workspace — new Kage surface	imperium shell	imperium
 WORK	workspace-1	Workspace multiplexer — Zellij	zellij	zellij
 WORK	ai-workspace-1	AI coding workspace — OpenCode	opencode	opencode
 ORGANIZE	calendar-1	Calendar — Calcurse	calcurse	calcurse
@@ -28,6 +29,7 @@ MEDIA	music-player-1	Music library — cmus	cmus	cmus
 MEDIA	music-player-2	MPD music client — ncmpcpp	ncmpcpp	ncmpcpp
 MEDIA	image-viewer-1	Image viewer — Chafa	f=$(find "$HOME" -type f 2>/dev/null | fzf --prompt='Image> '); test -n "$f" && glyph-open "$f"	chafa
 MEDIA	video-player-1	Video in terminal cells — mpv	f=$(find "$HOME" -type f 2>/dev/null | fzf --prompt='Video> '); test -n "$f" && mpv --vo=tct "$f"	mpv
+MEDIA	video-player-gui	Video — VLC graphical player	vlc	vlc
 MEDIA	audio-mixer-1	Audio mixer — PulseMixer	pulsemixer	pulsemixer
 SYSTEM	system-monitor-1	System monitor — btop	btop	btop
 SYSTEM	gpu-monitor-1	GPU monitor — nvtop	nvtop	nvtop
@@ -44,6 +46,9 @@ SYSTEM	kernel-manager-1	Kernel modules — kmon	sudo kmon	kmon
 SYSTEM	container-manager-1	Containers — LazyDocker	lazydocker	lazydocker
 SYSTEM	kubernetes-manager-1	Kubernetes — K9s	k9s	k9s
 SYSTEM	system-info-1	System identity — Fastfetch	fastfetch	fastfetch
-SYSTEM	package-manager-1	Software — TAC Packages	tac	tac
-SYSTEM	settings	Settings — Glyph Control	glyph-control	glyph-control
-SYSTEM	doctor	Health report — Glyph Doctor	glyph-doctor | less -R	glyph-doctor
+SYSTEM	package-manager-1	Software — Arca Packages	arca	arca
+SYSTEM	tui-store	Software — 100 TUI app catalog	glyph-store	glyph-store
+SYSTEM	settings	Settings — Zenith Control	glyph-control	glyph-control
+SYSTEM	themes	Appearance — Zenith themes	glyph-theme	glyph-theme
+SYSTEM	wallpapers	Appearance — GitHub wallpapers	glyph-wallpaper	glyph-wallpaper
+SYSTEM	doctor	Health report — Zenith Doctor	glyph-doctor | less -R	glyph-doctor

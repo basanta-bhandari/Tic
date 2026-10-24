@@ -45,7 +45,7 @@ kernel-manager-1	system	kmon	kmon	Kernel module manager
 sysctl-manager-1	system	systeroid	systeroid	Interactive sysctl manager
 system-info-1	system	fastfetch	fastfetch	System information summary
 hex-editor-1	system	dhex	dhex	Hex editor and binary diff tool
-package-manager-1	system	pacman	tac	TAC capability package manager (TUI plus Pacman)
+package-manager-1	system	pacman	arca	Arca capability package manager (TUI plus Pacman)
 network-manager-1	network	networkmanager	nmtui	NetworkManager text interface
 wifi-manager-1	network	impala	impala	Wi-Fi manager
 bluetooth-manager-1	network	bluetui	bluetui	Bluetooth manager

@@ -26,9 +26,9 @@ while IFS=$'\t' read -r alias role provider command_name description; do
         "pkgname=$alias" \
         'pkgver=1.0' \
         'pkgrel=1' \
-        "pkgdesc='$escaped_description (Glyph capability: $role)'" \
+        "pkgdesc='$escaped_description (Zenith capability: $role)'" \
         "arch=('any')" \
-        "url='https://example.invalid/glyph-linux'" \
+        "url='https://example.invalid/zenith-os'" \
         "license=('MIT')" \
         "depends=('$provider')" \
         "_glyph_command='$command_name'" \
@@ -47,9 +47,9 @@ done <"$CAP_DB"
 
 packages=("$OUT_DIR"/*.pkg.tar.zst)
 if [[ -n ${GLYPH_REPO_SIGNING_KEY:-} ]]; then
-    repo-add -s -k "$GLYPH_REPO_SIGNING_KEY" "$OUT_DIR/tic.db.tar.zst" "${packages[@]}"
+    repo-add -s -k "$GLYPH_REPO_SIGNING_KEY" "$OUT_DIR/arca.db.tar.zst" "${packages[@]}"
 else
-    repo-add "$OUT_DIR/tic.db.tar.zst" "${packages[@]}"
+    repo-add "$OUT_DIR/arca.db.tar.zst" "${packages[@]}"
 fi
 
-printf 'Tic repository written to %s\n' "$OUT_DIR"
+printf 'Arca repository written to %s\n' "$OUT_DIR"

@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+    printf 'imperium: %s\n' "$*" >&2
+    exit 1
+}
+
+usage() {
+    cat <<'EOF'
+Usage: imperium ACTION [ARGUMENT]
+
+Transitional Imperium compositor/workspace controller for Zenith OS.
+
+Actions:
+  home                         open the Zenith home surface
+  launcher                     open Zenith in an overlay
+  shell                        create a Kage window
+  split left|right|top|bottom create a Kage split
+  tab [NAME]                   create a named workspace tab
+  next | previous              focus the adjacent tab
+  overview                     select any Kitty window
+  theme [NAME]                 select or apply a Zenith theme
+  media [FILE]                 launch VLC as a native surface
+  close                        close the focused Kitty window
+  status                       show the current Kitty layout tree
+EOF
+}
+
+readonly KITTY_ADDRESS="${GLYPH_KITTY_LISTEN_ON:-unix:${XDG_RUNTIME_DIR:-/tmp/glyph-$UID}/glyph-kitty}"
+
+remote() {
+    command -v kitty >/dev/null 2>&1 || die 'Kitty is not installed'
+    kitty @ --to "$KITTY_ADDRESS" "$@"
+}
+
+kage_command=(kage --login)
+action="${1:-home}"
+shift || true
+
+case "$action" in
+    home)
+        if [[ -n ${KITTY_WINDOW_ID:-} ]]; then
+            remote set-tab-title 'Zenith Home' >/dev/null 2>&1 || true
+            remote set-window-title 'Zenith' >/dev/null 2>&1 || true
+        fi
+        exec zenith
+        ;;
+    launcher)
+        remote launch --type=overlay --title='Zenith Launcher' zenith
+        ;;
+    shell)
+        remote launch --type=window --title=Kage "${kage_command[@]}"
+        ;;
+    split)
+        direction="${1:-right}"
+        case "$direction" in
+            left|right) location=vsplit ;;
+            top|bottom) location=hsplit ;;
+            *) die 'split direction must be left, right, top, or bottom' ;;
+        esac
+        remote launch --location="$location" --title=Kage "${kage_command[@]}"
+        ;;
+    tab)
+        name="${1:-Workspace}"
+        remote launch --type=tab --tab-title="$name" --title=Kage "${kage_command[@]}"
+        ;;
+    next) remote action next_tab ;;
+    previous) remote action previous_tab ;;
+    overview)
+        if [[ -z ${KITTY_WINDOW_ID:-} ]]; then
+            remote launch --type=overlay --title='Imperium Overview' glyph-overview
+            exit 0
+        fi
+        command -v jq >/dev/null 2>&1 || die 'jq is required'
+        command -v fzf >/dev/null 2>&1 || die 'fzf is required'
+        selection="$(remote ls | jq -r '
+            .[] as $os | $os.tabs[] as $tab | $tab.windows[] |
+            "\(.id)\t\($tab.title)\t\(.title)\t\(.cwd // "")"
+        ' | fzf --delimiter=$'\t' --with-nth=2.. --prompt='Imperium surface> ')" || exit 0
+        window_id="${selection%%$'\t'*}"
+        [[ -n "$window_id" ]] && remote focus-window --match="id:$window_id"
+        ;;
+    theme) exec glyph-theme "${1:-}" ;;
+    media)
+        command -v vlc >/dev/null 2>&1 || die 'VLC is not installed'
+        if (($#)); then
+            nohup vlc -- "$@" >/dev/null 2>&1 &
+        else
+            nohup vlc >/dev/null 2>&1 &
+        fi
+        ;;
+    close) remote close-window ;;
+    status) remote ls | jq . ;;
+    -h|--help|help) usage ;;
+    *) usage >&2; exit 2 ;;
+esac

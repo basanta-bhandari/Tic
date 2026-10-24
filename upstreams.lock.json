@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "upstreams": {
+    "imperium-engine": {
+      "name": "TUIOS",
+      "url": "https://github.com/basanta-bhandari/tuios.git",
+      "upstream": "https://github.com/Gaurav-Gosain/tuios.git",
+      "revision": "05ca9960b660d400ab5d7beb17386ec943f66aa7",
+      "license": "MIT",
+      "language": "Go"
+    },
+    "kage-shell": {
+      "name": "Kage shell",
+      "url": "https://github.com/basanta-bhandari/fish-shell.git",
+      "upstream": "https://github.com/fish-shell/fish-shell.git",
+      "revision": "1e8518be648e07a0e5987fab1d5d9ca7299ad0eb",
+      "ref": "glyph/main",
+      "license": "GPL-2.0",
+      "language": "Rust"
+    },
+    "pydos": {
+      "name": "PY_DOS",
+      "url": "https://github.com/basanta-bhandari/PY_DOS.git",
+      "revision": "2cfa2b20e72f37947d1ffa3d2c504354722e357a",
+      "license": "MIT",
+      "language": "Python"
+    }
+  }
+}

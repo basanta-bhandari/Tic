@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Arca is the stable-capability TUI over Pacman. Pacman remains the transaction
+# engine while Arca presents the curated application catalog.
+exec /usr/local/bin/glyph-pkg "$@"
